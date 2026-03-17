@@ -1,0 +1,21 @@
+# Dependencias
+node_modules/
+
+# Variables de entorno (CRÍTICO - NO SUBIR)
+.env
+
+# Archivos de build
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
