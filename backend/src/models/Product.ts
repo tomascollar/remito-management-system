@@ -3,9 +3,9 @@ import mongoose, { Document, Schema } from 'mongoose';
 export interface IProduct extends Document {
   nombre: string;
   categoria?: string;
-  unidad_stock: string; // Cómo se almacena (cajon, bolsa, etc.)
-  cantidad_por_bulto: number; // Cuántas unidades trae el bulto
-  permite_venta_fraccionada: boolean; // Si se puede vender por unidad
+  unidad_stock: string;
+  cantidad_por_bulto?: number; // Ahora opcional
+  permite_venta_fraccionada: boolean;
   activo: boolean;
   createdAt: Date;
 }
@@ -25,19 +25,18 @@ const ProductSchema: Schema = new Schema({
     type: String,
     required: [true, 'La unidad de stock es requerida'],
     trim: true
-    // Ejemplo: "cajon", "bolsa", "atado", etc.
   },
   cantidad_por_bulto: {
     type: Number,
-    required: [true, 'La cantidad por bulto es requerida'],
     min: 1,
-    default: 1
+    // Solo requerido si permite_venta_fraccionada es true (se valida en el controller/validators)
+    required: function (this: IProduct) {
+      return this.permite_venta_fraccionada === true;
+    }
   },
   permite_venta_fraccionada: {
     type: Boolean,
     default: false
-    // true = se puede vender por unidad (ej: repollo)
-    // false = solo se vende por bulto completo (ej: banana)
   },
   activo: {
     type: Boolean,

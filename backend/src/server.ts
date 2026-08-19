@@ -5,6 +5,7 @@ import { connectDB } from './config/database';
 
 // Importar rutas
 import authRoutes from './routes/authRoutes';
+import productRoutes from './routes/productRoutes';
 
 dotenv.config();
 
@@ -17,6 +18,7 @@ app.use(express.json());
 
 // Rutas
 app.use('/api/auth', authRoutes);
+app.use('/api/products', productRoutes);
 
 // Ruta de prueba
 app.get('/', (req, res) => {
