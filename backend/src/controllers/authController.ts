@@ -6,7 +6,7 @@ import User from '../models/User';
 // Registrar nuevo usuario (solo superadmin puede crear usuarios)
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nombre, email, password, rol } = req.body;
+    const { nombre, email, password } = req.body; // "rol" ya no se acepta desde el registro público
 
     // Verificar si el usuario ya existe
     const existeUsuario = await User.findOne({ email });
@@ -24,7 +24,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       nombre,
       email,
       password: hashedPassword,
-      rol: rol || 'vendedor'
+      rol: 'vendedor' // Registro público siempre crea el rol de menor privilegio
     });
 
     await nuevoUsuario.save();
