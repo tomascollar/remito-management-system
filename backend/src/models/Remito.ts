@@ -94,22 +94,13 @@ const RemitoSchema: Schema = new Schema({
   timestamps: true
 });
 
+
 // Auto-incrementar numero_remito
-RemitoSchema.pre('save', function(this: any, next: any) {
+RemitoSchema.pre('save', async function (this: any) {
   if (this.isNew) {
-    mongoose.model('Remito')
-      .findOne()
-      .sort({ numero_remito: -1 })
-      .exec()
-      .then((lastRemito: any) => {
-        this.numero_remito = lastRemito ? lastRemito.numero_remito + 1 : 1;
-        next();
-      })
-      .catch((err: any) => {
-        next(err);
-      });
-  } else {
-    next();
+    const RemitoModel = mongoose.model('Remito');
+    const lastRemito = await RemitoModel.findOne().sort({ numero_remito: -1 });
+    this.numero_remito = lastRemito ? (lastRemito as any).numero_remito + 1 : 1;
   }
 });
 

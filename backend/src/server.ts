@@ -6,6 +6,8 @@ import { connectDB } from './config/database';
 // Importar rutas
 import authRoutes from './routes/authRoutes';
 import productRoutes from './routes/productRoutes';
+import stockDiarioRoutes from './routes/stockDiarioRoutes';
+import remitoRoutes from './routes/remitoRoutes';
 
 dotenv.config();
 
@@ -19,6 +21,8 @@ app.use(express.json());
 // Rutas
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/stock-diario', stockDiarioRoutes);
+app.use('/api/remitos', remitoRoutes);
 
 // Ruta de prueba
 app.get('/', (req, res) => {

@@ -4,9 +4,10 @@ export interface IStockDiario extends Document {
   fecha: Date;
   producto: mongoose.Types.ObjectId;
   cantidad_bultos_inicial: number;
-  cantidad_bultos_actual: number; // Se irá descontando (puede ser decimal: 15.5 cajones)
+  cantidad_bultos_actual: number;
   precio_bulto: number;
-  precio_unidad?: number; // Solo si permite venta fraccionada
+  precio_unidad?: number;
+  activo: boolean; // Solo un registro activo por producto a la vez
   createdAt: Date;
   updatedAt: Date;
 }
@@ -15,6 +16,7 @@ const StockDiarioSchema: Schema = new Schema({
   fecha: {
     type: Date,
     required: true,
+    default: Date.now,
     index: true
   },
   producto: {
@@ -40,13 +42,14 @@ const StockDiarioSchema: Schema = new Schema({
   precio_unidad: {
     type: Number,
     min: 0
-    // Solo se usa si el producto permite venta fraccionada
+  },
+  activo: {
+    type: Boolean,
+    default: true,
+    index: true
   }
 }, {
   timestamps: true
 });
-
-// Índice compuesto para evitar duplicados producto-fecha del mismo día
-StockDiarioSchema.index({ producto: 1, fecha: 1 });
 
 export default mongoose.model<IStockDiario>('StockDiario', StockDiarioSchema);
