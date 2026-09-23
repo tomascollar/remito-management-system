@@ -1,6 +1,8 @@
 import express, { Application } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+dotenv.config();
+
 import { connectDB } from './config/database';
 
 // Importar rutas
@@ -11,7 +13,7 @@ import remitoRoutes from './routes/remitoRoutes';
 import userRoutes from './routes/userRoutes';
 import { limiteGeneral } from './middleware/rateLimiter';
 
-dotenv.config();
+
 
 const app: Application = express();
 const PORT = process.env.PORT || 5000;

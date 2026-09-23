@@ -1,15 +1,13 @@
 import { Router } from 'express';
-import { register, login, getProfile } from '../controllers/authController';
+import { login, getProfile } from '../controllers/authController';
 import { verificarToken } from '../middleware/authMiddleware';
-import { limiteLogin, limiteRegistro } from '../middleware/rateLimiter';
+import { limiteLogin } from '../middleware/rateLimiter';
+import { manejarErroresValidacion } from '../middleware/validationMiddleware';
+import { validarLogin } from '../middleware/authValidators';
 
 const router = Router();
 
-// Rutas públicas (no requieren autenticación)
-router.post('/register',limiteRegistro, register);
-router.post('/login', limiteLogin, login);
-
-// Rutas protegidas (requieren autenticación)
+router.post('/login', limiteLogin, validarLogin, manejarErroresValidacion, login);
 router.get('/profile', verificarToken, getProfile);
 
 export default router;

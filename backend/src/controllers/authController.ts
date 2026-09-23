@@ -3,6 +3,12 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User';
 
+
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET no está configurado en las variables de entorno');
+}
+
 // Registrar nuevo usuario (solo superadmin puede crear usuarios)
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -71,13 +77,10 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     // Generar token JWT
     const token = jwt.sign(
-      { 
-        id: usuario._id, 
-        rol: usuario.rol 
-      },
-      process.env.JWT_SECRET || 'secret_key',
-      { expiresIn: '8h' }
-    );
+  { id: usuario._id, rol: usuario.rol },
+  JWT_SECRET,
+  { expiresIn: '8h' }
+);
 
     res.json({
       message: 'Login exitoso',
