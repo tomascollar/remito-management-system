@@ -30,11 +30,15 @@ export const crearRemito = async (req: Request, res: Response): Promise<void> =>
   }
 };
 
-// Agregar un producto a un remito existente (descuenta stock)
+// Agregar un producto a un remito existente.
+// - Venta por bulto: descuenta stock. Venta por unidad: NO toca el stock en bultos.
+// - Si el remito ya tiene una línea del mismo producto, misma unidad y mismo precio,
+//   la cantidad se suma a esa línea en vez de crear otra.
 export const agregarItem = async (req: Request, res: Response): Promise<void> => {
   try {
     const remitoId = req.params.id as string;
-    const { producto, cantidad, unidad_venta } = req.body; // unidad_venta: 'bulto' | 'unidad'
+    const { producto, unidad_venta } = req.body; // unidad_venta: 'bulto' | 'unidad'
+    const cantidad = Number(req.body.cantidad);
 
     const remito = await Remito.findById(remitoId);
     if (!remito) {
@@ -65,53 +69,60 @@ export const agregarItem = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    // Calcular cuántos bultos consume esta venta y el precio unitario correspondiente
-
-    
     let bultos_consumidos: number;
     let precio_unitario: number;
 
     if (unidad_venta === 'bulto') {
+      // Venta por bulto: es la ÚNICA que mueve el stock (se descuentan bultos enteros)
       bultos_consumidos = cantidad;
       precio_unitario = stockVigente.precio_bulto;
-    } else {
-      // unidad_venta === 'unidad'
-      if (!productoDoc.cantidad_por_bulto) {
-        res.status(400).json({ message: 'El producto no tiene definida una cantidad por bulto' });
+
+      if (stockVigente.cantidad_bultos_actual < bultos_consumidos) {
+        res.status(400).json({
+          message: `Stock insuficiente. Disponible: ${stockVigente.cantidad_bultos_actual} bultos, se necesitan: ${bultos_consumidos}`
+        });
         return;
       }
+
+      stockVigente.cantidad_bultos_actual -= bultos_consumidos;
+      await stockVigente.save();
+    } else {
+      // Venta por unidad (solo productos fraccionables): se registra la cantidad y el
+      // precio por unidad tal cual. No se convierte a bultos, porque el contenido de
+      // cada bulto varía (un cajón trae 14, 15 o 16). El stock en bultos no se toca y
+      // se corrige al actualizar el stock del día.
       if (!stockVigente.precio_unidad) {
         res.status(400).json({ message: 'No hay precio por unidad definido para este producto' });
         return;
       }
-      bultos_consumidos = cantidad / productoDoc.cantidad_por_bulto;
+      bultos_consumidos = 0;
       precio_unitario = stockVigente.precio_unidad;
     }
 
-    // Verificar que haya stock suficiente
-    if (stockVigente.cantidad_bultos_actual < bultos_consumidos) {
-      res.status(400).json({
-        message: `Stock insuficiente. Disponible: ${stockVigente.cantidad_bultos_actual} bultos, se necesitan: ${bultos_consumidos}`
-      });
-      return;
+    // ¿Ya hay una línea igual? Mismo producto + misma unidad + MISMO PRECIO. El precio importa:
+    // si cambió durante el día, lo ya vendido conserva el precio viejo y lo nuevo va en otra línea.
+    const existente = (remito.items as any[]).find(
+      (it) =>
+        it.producto.toString() === productoDoc._id.toString() &&
+        it.unidad_venta === unidad_venta &&
+        it.precio_unitario === precio_unitario
+    );
+
+    if (existente) {
+      existente.cantidad += cantidad;
+      existente.bultos_consumidos += bultos_consumidos;
+      existente.subtotal = existente.cantidad * existente.precio_unitario;
+    } else {
+      remito.items.push({
+        producto: productoDoc._id,
+        nombre_producto: productoDoc.nombre,
+        cantidad,
+        unidad_venta,
+        bultos_consumidos,
+        precio_unitario,
+        subtotal: cantidad * precio_unitario
+      } as any);
     }
-
-    const subtotal = cantidad * precio_unitario;
-
-    // Descontar stock
-    stockVigente.cantidad_bultos_actual -= bultos_consumidos;
-    await stockVigente.save();
-
-    // Agregar ítem al remito
-    remito.items.push({
-      producto: productoDoc._id,
-      nombre_producto: productoDoc.nombre,
-      cantidad,
-      unidad_venta,
-      bultos_consumidos,
-      precio_unitario,
-      subtotal
-    } as any);
 
     // Recalcular total
     remito.total = remito.items.reduce((acc, item: any) => acc + item.subtotal, 0);
@@ -125,6 +136,69 @@ export const agregarItem = async (req: Request, res: Response): Promise<void> =>
   } catch (error) {
     console.error('Error en agregarItem:', error);
     res.status(500).json({ message: 'Error al agregar producto al remito' });
+  }
+};
+
+// Cambiar la cantidad de un ítem ya cargado. Mantiene el precio con el que se vendió.
+// En ítems por bulto ajusta el stock por la diferencia; en ítems por unidad no lo toca.
+export const modificarCantidadItem = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const remitoId = req.params.id as string;
+    const itemId = req.params.itemId as string;
+    const cantidad = Number(req.body.cantidad);
+
+    const remito = await Remito.findById(remitoId);
+    if (!remito) {
+      res.status(404).json({ message: 'Remito no encontrado' });
+      return;
+    }
+
+    if (remito.estado === 'cerrado') {
+      res.status(400).json({ message: 'El remito está cerrado, no se pueden modificar sus productos' });
+      return;
+    }
+
+    const item = (remito.items as any).id(itemId);
+    if (!item) {
+      res.status(404).json({ message: 'Ítem no encontrado en el remito' });
+      return;
+    }
+
+    if (item.unidad_venta === 'bulto') {
+      // diferencia > 0: se llevan más bultos (hay que verificar stock); < 0: se devuelven
+      const diferencia = cantidad - item.cantidad;
+      const stockVigente = await StockDiario.findOne({ producto: item.producto, activo: true });
+
+      if (diferencia > 0) {
+        if (!stockVigente) {
+          res.status(404).json({ message: 'No hay stock vigente registrado para este producto' });
+          return;
+        }
+        if (stockVigente.cantidad_bultos_actual < diferencia) {
+          res.status(400).json({
+            message: `Stock insuficiente. Disponible: ${stockVigente.cantidad_bultos_actual} bultos, se necesitan: ${diferencia} más`
+          });
+          return;
+        }
+      }
+
+      if (stockVigente && diferencia !== 0) {
+        stockVigente.cantidad_bultos_actual -= diferencia;
+        await stockVigente.save();
+      }
+      item.bultos_consumidos = cantidad;
+    }
+
+    item.cantidad = cantidad;
+    item.subtotal = cantidad * item.precio_unitario;
+
+    remito.total = remito.items.reduce((acc, it: any) => acc + it.subtotal, 0);
+    await remito.save();
+
+    res.json({ message: 'Cantidad actualizada exitosamente', remito });
+  } catch (error) {
+    console.error('Error en modificarCantidadItem:', error);
+    res.status(500).json({ message: 'Error al modificar la cantidad' });
   }
 };
 

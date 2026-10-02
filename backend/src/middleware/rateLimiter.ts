@@ -2,6 +2,8 @@ import rateLimit from 'express-rate-limit';
 
 // Límite estricto para intentos de login (previene fuerza bruta)
 export const limiteLogin = rateLimit({
+
+    skipSuccessfulRequests: true, // solo cuentan los intentos fallidos; los logins correctos no consumen el límite
   windowMs: 15 * 60 * 1000, // Ventana de 15 minutos
   max: 5, // Máximo 5 intentos por IP en esa ventana
   message: {
@@ -9,6 +11,7 @@ export const limiteLogin = rateLimit({
   },
   standardHeaders: true, // Devuelve info del límite en headers RateLimit-*
   legacyHeaders: false
+
 });
 
 // Límite para registro (previene creación masiva de cuentas)
@@ -22,10 +25,12 @@ export const limiteRegistro = rateLimit({
   legacyHeaders: false
 });
 
+const esProduccion = process.env.NODE_ENV === 'production';
+
 // Límite general para el resto de la API (más permisivo, previene abuso general)
 export const limiteGeneral = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200, // 200 peticiones cada 15 minutos por IP
+  max: esProduccion ? 1000 : 10000, // en desarrollo prácticamente sin límite
   message: {
     message: 'Demasiadas peticiones desde esta IP. Intentá de nuevo más tarde.'
   },

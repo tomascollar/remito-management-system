@@ -45,16 +45,12 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    if (permite_venta_fraccionada && (!cantidad_por_bulto || cantidad_por_bulto <= 0)) {
-  res.status(400).json({ message: 'La cantidad por bulto es requerida y debe ser mayor a 0 cuando el producto permite venta fraccionada' });
-  return;
-}
 
     const nuevoProducto = new Product({
       nombre: nombre.trim(),
       categoria: categoria?.trim(),
-      unidad_stock: unidad_stock.trim(),
-      cantidad_por_bulto,
+        unidad_stock: unidad_stock?.trim() || 'Bulto',
+       cantidad_por_bulto: cantidad_por_bulto ?? undefined, // null => no se guarda
       permite_venta_fraccionada: permite_venta_fraccionada || false
     });
 
@@ -97,20 +93,17 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
     if (categoria !== undefined) producto.categoria = categoria.trim();
     if (unidad_stock) producto.unidad_stock = unidad_stock.trim();
     
-    if (cantidad_por_bulto !== undefined) {
-  if (cantidad_por_bulto <= 0) {
-    res.status(400).json({ message: 'La cantidad por bulto debe ser mayor a 0' });
-    return;
-  }
-  producto.cantidad_por_bulto = cantidad_por_bulto;
-}
+    if (cantidad_por_bulto === null) {
+      producto.cantidad_por_bulto = undefined;
+    } else if (cantidad_por_bulto !== undefined) {
+      if (cantidad_por_bulto <= 0) {
+        res.status(400).json({ message: 'La cantidad por bulto debe ser mayor a 0' });
+        return;
+      }
+      producto.cantidad_por_bulto = cantidad_por_bulto;
+    }
 
-// Validación cruzada final: si queda permite_venta_fraccionada=true, debe haber cantidad_por_bulto
-const fraccionadaFinal = permite_venta_fraccionada !== undefined ? permite_venta_fraccionada : producto.permite_venta_fraccionada;
-if (fraccionadaFinal && !producto.cantidad_por_bulto) {
-  res.status(400).json({ message: 'Este producto permite venta fraccionada, por lo tanto necesita una cantidad por bulto definida' });
-  return;
-}
+
 
 
     if (permite_venta_fraccionada !== undefined) {

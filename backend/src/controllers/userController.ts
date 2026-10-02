@@ -3,6 +3,12 @@ import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 import User from '../models/User';
 
+
+// Id del usuario que hace la petición (lo deja verificarToken)
+const idSolicitante = (req: Request): string | undefined =>
+  (req as Request & { usuario?: { id: string } }).usuario?.id;
+
+
 // Obtener todos los usuarios (solo superadmin)
 export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -93,6 +99,11 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
+      if (id === idSolicitante(req)) {
+    if (activo === false) { res.status(400).json({ message: 'No podés desactivar tu propio usuario' }); return; }
+    if (rol && rol !== usuario.rol) { res.status(400).json({ message: 'No podés cambiar tu propio rol' }); return; }
+  }
+
     // Actualizar campos
     if (nombre) usuario.nombre = nombre;
     if (email) {
@@ -140,6 +151,9 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
   try {
     const { id } = req.params;
 
+      if (id === idSolicitante(req))
+         { res.status(400).json({ message: 'No podés desactivar tu propio usuario' }); return; }
+
     const usuario = await User.findById(id);
     if (!usuario) {
       res.status(404).json({ message: 'Usuario no encontrado' });
@@ -162,6 +176,9 @@ export const permanentDeleteUser = async (req: Request, res: Response): Promise<
   try {
     const { id } = req.params;
 
+      if (id === idSolicitante(req)) 
+        { res.status(400).json({ message: 'No podés desactivar tu propio usuario' }); return; }
+
     const usuario = await User.findByIdAndDelete(id);
     if (!usuario) {
       res.status(404).json({ message: 'Usuario no encontrado' });
@@ -171,6 +188,6 @@ export const permanentDeleteUser = async (req: Request, res: Response): Promise<
     res.json({ message: 'Usuario eliminado permanentemente' });
   } catch (error) {
     console.error('Error en permanentDeleteUser:', error);
-    res.status(500).json({ message: 'Error al eliminar usuario permanentemente' });
+    res.status(500).json({ message: 'No podes eliminar tu propio usuario' });
   }
 };

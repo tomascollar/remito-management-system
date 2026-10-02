@@ -44,5 +44,5 @@ export const validarAjusteStock = [
     .optional()
     .trim()
     .isLength({ max: 200 }).withMessage('Las observaciones no pueden superar 200 caracteres')
-    .escape()
+
 ];

@@ -5,7 +5,7 @@ export const validarCrearRemito = [
     .trim()
     .notEmpty().withMessage('El nombre del cliente es requerido')
     .isLength({ min: 2, max: 100 }).withMessage('El nombre debe tener entre 2 y 100 caracteres')
-    .escape()
+  
 ];
 
 export const validarAgregarItem = [
@@ -28,4 +28,11 @@ export const validarQuitarItem = [
 
 export const validarIdRemito = [
   param('id').isMongoId().withMessage('ID de remito inválido')
+];
+
+export const validarModificarItem = [
+  param('id').isMongoId().withMessage('ID de remito inválido'),
+  param('itemId').isMongoId().withMessage('ID de ítem inválido'),
+  body('cantidad')
+    .isFloat({ gt: 0 }).withMessage('La cantidad debe ser un número mayor a 0')
 ];

@@ -6,7 +6,8 @@ import {
   cerrarRemito,
   reabrirRemito,
   getRemitos,
-  getRemitoById
+  getRemitoById,
+  modificarCantidadItem
 } from '../controllers/remitoController';
 import { verificarToken, verificarRol } from '../middleware/authMiddleware';
 import { manejarErroresValidacion } from '../middleware/validationMiddleware';
@@ -14,7 +15,8 @@ import {
   validarCrearRemito,
   validarAgregarItem,
   validarQuitarItem,
-  validarIdRemito
+  validarIdRemito,
+  validarModificarItem
 } from '../middleware/remitoValidators';
 
 const router = Router();
@@ -40,6 +42,14 @@ router.post(
   validarAgregarItem,
   manejarErroresValidacion,
   agregarItem
+);
+
+router.patch(
+  '/:id/items/:itemId',
+  verificarRol('superadmin', 'administrador', 'vendedor'),
+  validarModificarItem,
+  manejarErroresValidacion,
+  modificarCantidadItem
 );
 
 router.delete(

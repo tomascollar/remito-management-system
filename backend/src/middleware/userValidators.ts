@@ -6,8 +6,8 @@ export const validarCrearUsuario = [
   body('nombre')
     .trim()
     .notEmpty().withMessage('El nombre es requerido')
-    .isLength({ min: 2, max: 100 }).withMessage('El nombre debe tener entre 2 y 100 caracteres')
-    .escape(),
+    .isLength({ min: 2, max: 100 }).withMessage('El nombre debe tener entre 2 y 100 caracteres'),
+ 
 
   body('email')
     .trim()
@@ -28,8 +28,7 @@ export const validarActualizarUsuario = [
   body('nombre')
     .optional()
     .trim()
-    .isLength({ min: 2, max: 100 }).withMessage('El nombre debe tener entre 2 y 100 caracteres')
-    .escape(),
+    .isLength({ min: 2, max: 100 }).withMessage('El nombre debe tener entre 2 y 100 caracteres'),
 
   body('email')
     .optional()

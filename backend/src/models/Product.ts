@@ -28,11 +28,7 @@ const ProductSchema: Schema = new Schema({
   },
   cantidad_por_bulto: {
     type: Number,
-    min: 1,
-    // Solo requerido si permite_venta_fraccionada es true (se valida en el controller/validators)
-    required: function (this: IProduct) {
-      return this.permite_venta_fraccionada === true;
-    }
+    min: 1
   },
   permite_venta_fraccionada: {
     type: Boolean,
