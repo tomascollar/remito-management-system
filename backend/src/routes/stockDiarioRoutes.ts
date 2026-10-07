@@ -7,6 +7,8 @@ import {
   actualizarPrecioDia,
   ajustarStock
 } from '../controllers/stockDiarioController';
+import { getMovimientos } from '../controllers/movimientoStockController';
+import { validarListarMovimientos } from '../middleware/movimientoStockValidators';
 import { verificarToken, verificarRol } from '../middleware/authMiddleware';
 import { manejarErroresValidacion } from '../middleware/validationMiddleware';
 import {
@@ -22,6 +24,16 @@ const router = Router();
 router.use(verificarToken);
 
 router.get('/', getStockVigente);
+
+// Historial de movimientos (auditoría): solo administración. Debe ir ANTES de '/:productoId'.
+router.get(
+  '/movimientos',
+  verificarRol('superadmin', 'administrador'),
+  validarListarMovimientos,
+  manejarErroresValidacion,
+  getMovimientos
+);
+
 router.get('/:productoId', validarProductoIdParam, manejarErroresValidacion, getStockVigentePorProducto);
 
 router.post(

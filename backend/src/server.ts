@@ -1,6 +1,8 @@
 import express, { Application } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+
+
 dotenv.config();
 
 import { connectDB } from './config/database';
@@ -13,6 +15,9 @@ import remitoRoutes from './routes/remitoRoutes';
 import userRoutes from './routes/userRoutes';
 import { limiteGeneral } from './middleware/rateLimiter';
 
+import securityLabRoutes from './routes/securityLabRoutes';
+import { laboratorioActivo } from './security/securityConfig';
+
 
 
 const app: Application = express();
@@ -21,6 +26,11 @@ const PORT = process.env.PORT || 5000;
 // Middlewares
 app.use(cors());
 app.use(express.json());
+
+if (laboratorioActivo()) {
+      app.use('/api/security-lab', securityLabRoutes);
+      console.warn('⚠️  SECURITY_LAB activo: el laboratorio de seguridad está disponible. No usar en producción.');
+    }
 app.use(limiteGeneral); // Protección general para toda la API
 
 // Rutas

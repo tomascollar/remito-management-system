@@ -5,6 +5,7 @@ import mongoose from 'mongoose';
 import Remito from '../src/models/Remito';
 import Product from '../src/models/Product';
 import StockDiario from '../src/models/StockDiario';
+import MovimientoStock from '../src/models/MovimientoStock';
 import { agregarItem, modificarCantidadItem, quitarItem, cerrarRemito, reabrirRemito } from '../src/controllers/remitoController';
 
 const oid = () => new mongoose.Types.ObjectId();
@@ -28,9 +29,13 @@ const nuevoRemito = () => { remito = persistir(new Remito({ nombre_cliente: 'Cli
 (StockDiario as any).findOne = async (f: any) => [stockRepollo, stockPapa].find((s) => s.producto.toString() === f.producto.toString()) ?? null;
 (Remito as any).findById = async () => remito;
 
+// Historial: se reemplaza el guardado por una lista en memoria para revisar qué se registró
+const movimientos: any[] = [];
+(MovimientoStock as any).create = async (m: any) => { movimientos.push(m); return m; };
+
 const llamar = async (fn: any, params: any, body: any = {}) => {
   const res: any = { code: 200, body: null, status(c: number) { this.code = c; return this; }, json(b: any) { this.body = b; return this; } };
-  await fn({ params, body } as any, res);
+  await fn({ params, body, usuario: { id: 'u1' } } as any, res);
   return res;
 };
 const stk = (s: any) => s.cantidad_bultos_actual;
@@ -102,6 +107,14 @@ const ok = (nombre: string) => console.log(`  ✔ ${nombre}`) || n++;
   await llamar(quitarItem, { id: 'r', itemId: itemBulto._id.toString() });
   assert.equal(stk(stockRepollo), antes + 1.5);
   ok('quitar un ítem editado devuelve exactamente lo que consumía (1,5 bultos)');
+
+  // --- Historial de movimientos: solo lo que mueve bultos, con signo y tipo correctos ---
+  assert.deepEqual(
+    movimientos.map((m) => [m.tipo, m.cantidad_bultos]),
+    [['venta', -2], ['venta', -1], ['venta', -1], ['venta', -2], ['devolucion', 4], ['venta', -0.5], ['devolucion', 1.5]]
+  );
+  assert.ok(movimientos.every((m) => m.usuario === 'u1' && m.remito && /^Remito #/.test(m.observaciones)));
+  ok('historial: ventas y devoluciones registradas (unidades y errores no dejan registro)');
 
   nuevoRemito();
   r = await llamar(cerrarRemito, { id: 'r' });

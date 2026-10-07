@@ -1,14 +1,22 @@
 import { Router } from 'express';
+import { getRemitos } from '../controllers/remitoListado';
+import { validarListarRemitos } from '../middleware/remitoListadoValidators';
+
 import {
   crearRemito,
   agregarItem,
   quitarItem,
   cerrarRemito,
   reabrirRemito,
-  getRemitos,
   getRemitoById,
   modificarCantidadItem
 } from '../controllers/remitoController';
+import {
+  agregarAjuste,
+  quitarAjuste,
+  registrarEntrega,
+  anularEntrega
+} from '../controllers/remitoPagosController';
 import { verificarToken, verificarRol } from '../middleware/authMiddleware';
 import { manejarErroresValidacion } from '../middleware/validationMiddleware';
 import {
@@ -16,7 +24,11 @@ import {
   validarAgregarItem,
   validarQuitarItem,
   validarIdRemito,
-  validarModificarItem
+  validarModificarItem,
+  validarAgregarAjuste,
+  validarQuitarAjuste,
+  validarRegistrarEntrega,
+  validarAnularEntrega
 } from '../middleware/remitoValidators';
 
 const router = Router();
@@ -24,7 +36,7 @@ const router = Router();
 router.use(verificarToken);
 
 // Lectura: cualquier usuario autenticado
-router.get('/', getRemitos);
+router.get('/', validarListarRemitos, manejarErroresValidacion, getRemitos);
 router.get('/:id', validarIdRemito, manejarErroresValidacion, getRemitoById);
 
 // Escritura: vendedor, administrador y superadmin (son quienes generan ventas)
@@ -74,6 +86,40 @@ router.patch(
   validarIdRemito,
   manejarErroresValidacion,
   reabrirRemito
+);
+
+// Ajustes (saldo anterior, descuentos…): solo con el remito abierto
+router.post(
+  '/:id/ajustes',
+  verificarRol('superadmin', 'administrador', 'vendedor'),
+  validarAgregarAjuste,
+  manejarErroresValidacion,
+  agregarAjuste
+);
+
+router.delete(
+  '/:id/ajustes/:ajusteId',
+  verificarRol('superadmin', 'administrador', 'vendedor'),
+  validarQuitarAjuste,
+  manejarErroresValidacion,
+  quitarAjuste
+);
+
+// Entregas (pagos a cuenta): también con el remito cerrado. Se anulan, no se borran.
+router.post(
+  '/:id/entregas',
+  verificarRol('superadmin', 'administrador', 'vendedor'),
+  validarRegistrarEntrega,
+  manejarErroresValidacion,
+  registrarEntrega
+);
+
+router.patch(
+  '/:id/entregas/:entregaId/anular',
+  verificarRol('superadmin', 'administrador', 'vendedor'),
+  validarAnularEntrega,
+  manejarErroresValidacion,
+  anularEntrega
 );
 
 export default router;

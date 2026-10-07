@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import Remito from '../models/Remito';
 import Product from '../models/Product';
 import StockDiario from '../models/StockDiario';
+import { registrarMovimiento } from '../services/movimientosStock';
+import { calcularTotal } from '../services/cobranzas';
 
 // Crear un nuevo remito (arranca vacío, solo con el nombre del cliente)
 export const crearRemito = async (req: Request, res: Response): Promise<void> => {
@@ -124,10 +126,22 @@ export const agregarItem = async (req: Request, res: Response): Promise<void> =>
       } as any);
     }
 
-    // Recalcular total
-    remito.total = remito.items.reduce((acc, item: any) => acc + item.subtotal, 0);
+    // Recalcular total (productos + ajustes)
+    remito.total = calcularTotal(remito.items, remito.ajustes);
 
     await remito.save();
+
+    // Historial: solo las ventas por bulto mueven stock
+    if (bultos_consumidos > 0) {
+      await registrarMovimiento({
+        producto: productoDoc._id,
+        tipo: 'venta',
+        cantidad_bultos: -bultos_consumidos,
+        usuario: (req as any).usuario.id,
+        remito: remito._id,
+        observaciones: `Remito #${remito.numero_remito} - ${remito.nombre_cliente}`
+      });
+    }
 
     res.status(201).json({
       message: 'Producto agregado al remito exitosamente',
@@ -164,6 +178,9 @@ export const modificarCantidadItem = async (req: Request, res: Response): Promis
       return;
     }
 
+    // Cantidad previa en bultos (null si la línea es por unidad y no mueve stock)
+    const cantidadAnterior: number | null = item.unidad_venta === 'bulto' ? item.cantidad : null;
+
     if (item.unidad_venta === 'bulto') {
       // diferencia > 0: se llevan más bultos (hay que verificar stock); < 0: se devuelven
       const diferencia = cantidad - item.cantidad;
@@ -192,8 +209,21 @@ export const modificarCantidadItem = async (req: Request, res: Response): Promis
     item.cantidad = cantidad;
     item.subtotal = cantidad * item.precio_unitario;
 
-    remito.total = remito.items.reduce((acc, it: any) => acc + it.subtotal, 0);
+    remito.total = calcularTotal(remito.items, remito.ajustes);
     await remito.save();
+
+    // Historial: la diferencia de bultos es una venta (si aumentó) o una devolución (si bajó)
+    if (cantidadAnterior !== null && cantidad !== cantidadAnterior) {
+      const diferencia = cantidad - cantidadAnterior;
+      await registrarMovimiento({
+        producto: item.producto,
+        tipo: diferencia > 0 ? 'venta' : 'devolucion',
+        cantidad_bultos: -diferencia,
+        usuario: (req as any).usuario.id,
+        remito: remito._id,
+        observaciones: `Remito #${remito.numero_remito} - cantidad modificada de ${cantidadAnterior} a ${cantidad}`
+      });
+    }
 
     res.json({ message: 'Cantidad actualizada exitosamente', remito });
   } catch (error) {
@@ -232,13 +262,26 @@ export const quitarItem = async (req: Request, res: Response): Promise<void> => 
       await stockVigente.save();
     }
 
+    // Se guardan estos datos antes de quitar la línea, para el historial
+    const productoQuitado = item.producto;
+    const bultosDevueltos = stockVigente ? item.bultos_consumidos : 0;
+
     // Quitar el ítem del array
     (remito.items as any).pull(itemId);
 
-    // Recalcular total
-    remito.total = remito.items.reduce((acc, it: any) => acc + it.subtotal, 0);
+    // Recalcular total (productos + ajustes)
+    remito.total = calcularTotal(remito.items, remito.ajustes);
 
     await remito.save();
+
+    await registrarMovimiento({
+      producto: productoQuitado,
+      tipo: 'devolucion',
+      cantidad_bultos: bultosDevueltos,
+      usuario: (req as any).usuario.id,
+      remito: remito._id,
+      observaciones: `Remito #${remito.numero_remito} - producto quitado`
+    });
 
     res.json({
       message: 'Producto quitado del remito exitosamente',
@@ -292,30 +335,7 @@ export const reabrirRemito = async (req: Request, res: Response): Promise<void> 
   }
 };
 
-// Listar remitos con filtros opcionales
-export const getRemitos = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { estado, vendedor, fecha_desde, fecha_hasta } = req.query;
-
-    const filtro: any = {};
-    if (estado) filtro.estado = estado;
-    if (vendedor) filtro.vendedor = vendedor;
-    if (fecha_desde || fecha_hasta) {
-      filtro.fecha = {};
-      if (fecha_desde) filtro.fecha.$gte = new Date(fecha_desde as string);
-      if (fecha_hasta) filtro.fecha.$lte = new Date(fecha_hasta as string);
-    }
-
-    const remitos = await Remito.find(filtro)
-      .populate('vendedor', 'nombre email')
-      .sort({ numero_remito: -1 });
-
-    res.json(remitos);
-  } catch (error) {
-    console.error('Error en getRemitos:', error);
-    res.status(500).json({ message: 'Error al obtener remitos' });
-  }
-};
+// (El listado paginado de remitos vive en remitoListado.ts)
 
 // Obtener un remito por ID
 export const getRemitoById = async (req: Request, res: Response): Promise<void> => {

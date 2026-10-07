@@ -267,12 +267,113 @@ async function main() {
       r = await api('GET', '/users', { token: tv });
       check('NO puede listar usuarios (403)', r.status === 403, msg(r));
 
+      r = await api('GET', '/stock-diario/movimientos', { token: tv });
+      check('NO puede ver el historial de stock (403)', r.status === 403, msg(r));
+
       r = await api('POST', '/remitos', { token: tv, body: { nombre_cliente: `TEST Vendedor ${stamp}` } });
       check('SÍ puede crear remitos (201)', r.status === 201, msg(r));
     }
   } else {
     console.log('\n(Permisos del vendedor omitidos: definí VENDEDOR_EMAIL y VENDEDOR_PASSWORD para incluirlos)');
   }
+
+  // ---------- Listado de remitos (paginación, búsqueda y validación) ----------
+  seccion('Listado de remitos');
+  const lista = (query) => api('GET', `/remitos?${query}`, { token });
+
+  r = await lista('limite=2');
+  check(
+    'GET /remitos devuelve una página con total (limite 2)',
+    r.status === 200 && Array.isArray(r.data?.remitos) && r.data.remitos.length <= 2 && r.data.limite === 2 && typeof r.data.total === 'number',
+    msg(r),
+  );
+  check(
+    'las filas no traen el detalle de ítems, solo cantidad_items',
+    r.data?.remitos?.every((x) => x.items === undefined && typeof x.cantidad_items === 'number'),
+    JSON.stringify(r.data?.remitos?.[0]),
+  );
+  check(
+    'vienen ordenados del más nuevo al más viejo',
+    r.data?.remitos?.every((x, i, a) => i === 0 || a[i - 1].numero_remito > x.numero_remito),
+  );
+
+  r = await lista(`q=${encodeURIComponent(`TEST Cliente ${stamp}`)}`);
+  check('buscar por nombre de cliente encuentra el remito de prueba', r.status === 200 && r.data?.total >= 1, msg(r));
+
+  r = await lista(`q=${encodeURIComponent(`test cliente ${stamp}`)}`);
+  check('la búsqueda ignora mayúsculas', r.status === 200 && r.data?.total >= 1, msg(r));
+
+  r = await lista(`q=${encodeURIComponent('.*(')}`);
+  check('un texto con símbolos de regex no rompe la búsqueda (200)', r.status === 200, msg(r));
+
+  r = await lista('limite=999');
+  check('limite fuera de rango se rechaza (400)', r.status === 400, msg(r));
+  r = await lista('pagina=0');
+  check('pagina inválida se rechaza (400)', r.status === 400, msg(r));
+  r = await lista('estado=otro');
+  check('estado inválido se rechaza (400)', r.status === 400, msg(r));
+
+  // ---------- Historial de stock (auditoría) ----------
+  seccion('Historial de stock');
+  const hist = (query) => api('GET', `/stock-diario/movimientos?${query}`, { token });
+
+  r = await hist(`producto=${papa._id}&limite=50`);
+  check(
+    'GET /stock-diario/movimientos devuelve una página con total',
+    r.status === 200 && Array.isArray(r.data?.movimientos) && typeof r.data.total === 'number',
+    msg(r),
+  );
+  check(
+    'las pruebas anteriores dejaron movimientos del producto (carga, ventas, ajuste)',
+    r.data?.total >= 2 && r.data.movimientos.every((m) => m.producto?._id === papa._id),
+    msg(r),
+  );
+  check(
+    'vienen del más nuevo al más viejo',
+    r.data?.movimientos?.every((m, i, a) => i === 0 || new Date(a[i - 1].fecha) >= new Date(m.fecha)),
+  );
+  r = await hist(`producto=${papa._id}&tipo=venta`);
+  check('filtrar por tipo "venta" trae solo ventas', r.status === 200 && r.data?.movimientos?.every((m) => m.tipo === 'venta'), msg(r));
+  r = await hist(`producto=${papa._id}&tipo=ajuste`);
+  check('filtrar por tipo "ajuste" trae solo ajustes', r.status === 200 && r.data?.movimientos?.every((m) => m.tipo === 'ajuste'), msg(r));
+  r = await hist('tipo=inventado');
+  check('tipo inválido se rechaza (400)', r.status === 400, msg(r));
+  r = await hist('limite=999');
+  check('limite fuera de rango se rechaza (400)', r.status === 400, msg(r));
+  r = await hist('producto=123');
+  check('producto con id inválido se rechaza (400)', r.status === 400, msg(r));
+
+  // ---------- Entregas y ajustes ----------
+  seccion('Entregas y ajustes');
+  r = await api('POST', '/remitos', { token, body: { nombre_cliente: `Cliente pagos ${stamp}` } });
+  const rp = r.data?.remito?._id;
+  r = await api('POST', `/remitos/${rp}/items`, { token, body: { producto: papa._id, cantidad: 2, unidad_venta: 'bulto' } });
+  const totalProd = r.data?.remito?.total; // 2 bultos de papa
+  r = await api('POST', `/remitos/${rp}/ajustes`, { token, body: { concepto: 'Saldo anterior', monto: 1000 } });
+  check('ajuste "Saldo anterior" suma al total', r.status === 201 && r.data?.remito?.total === totalProd + 1000, msg(r));
+  r = await api('POST', `/remitos/${rp}/ajustes`, { token, body: { concepto: 'Vacíos devueltos', monto: -300, resaltado: true } });
+  check('vacíos devueltos (−300) resaltado: descuenta del total y guarda la marca', r.status === 201 && r.data?.remito?.total === totalProd + 700 && r.data?.remito?.ajustes?.at(-1)?.resaltado === true, msg(r));
+  r = await api('POST', `/remitos/${rp}/ajustes`, { token, body: { concepto: 'x', monto: 0 } });
+  check('ajuste de monto 0 → 400', r.status === 400, msg(r));
+  r = await api('POST', `/remitos/${rp}/ajustes`, { token, body: { concepto: 'x', monto: 5, resaltado: 'si' } });
+  check('resaltado que no es booleano → 400', r.status === 400, msg(r));
+  r = await api('POST', `/remitos/${rp}/ajustes`, { token, body: { concepto: '<b>', monto: 5 } });
+  check('ajuste con < en el concepto → 400', r.status === 400, msg(r));
+  r = await api('POST', `/remitos/${rp}/entregas`, { token, body: { monto: 400, nota: 'Efectivo' } });
+  const entId = r.data?.remito?.entregas?.[0]?._id;
+  check('registrar entrega de 400', r.status === 201 && r.data?.remito?.entregado === 400 && r.data?.remito?.saldo === totalProd + 300, msg(r));
+  r = await api('POST', `/remitos/${rp}/entregas`, { token, body: { monto: 99999999 } });
+  check('entrega mayor al saldo → 400', r.status === 400, msg(r));
+  r = await api('PATCH', `/remitos/${rp}/cerrar`, { token });
+  r = await api('POST', `/remitos/${rp}/entregas`, { token, body: { monto: 100 } });
+  check('con el remito cerrado sí se registra una entrega', r.status === 201, msg(r));
+  r = await api('POST', `/remitos/${rp}/ajustes`, { token, body: { concepto: 'Otro', monto: 5 } });
+  check('con el remito cerrado NO se agregan ajustes (400)', r.status === 400, msg(r));
+  r = await api('PATCH', `/remitos/${rp}/entregas/${entId}/anular`, { token });
+  check('anular entrega: deja de contar (queda 100)', r.status === 200 && r.data?.remito?.entregado === 100 && r.data?.remito?.entregas?.[0]?.anulada === true, msg(r));
+  r = await api('GET', `/remitos?q=Cliente pagos ${stamp}`, { token });
+  const fila = r.data?.remitos?.[0];
+  check('el listado trae entregado, saldo y estado de cobro', fila?.entregado === 100 && fila?.estado_pago === 'parcial' && fila?.entregas === undefined, msg(r));
 
   // ---------- Limpieza ----------
   // Los productos de prueba se desactivan para que no aparezcan como activos.

@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema } from 'mongoose';
+import { redondear, totalEntregado } from '../services/cobranzas';
 
 interface IRemitoItem {
   producto: mongoose.Types.ObjectId;
@@ -10,12 +11,34 @@ interface IRemitoItem {
   subtotal: number;
 }
 
+/** Línea sin producto ni stock: "saldo anterior", descuento, recargo… Suma (o resta) al total. */
+interface IRemitoAjuste {
+  concepto: string;
+  monto: number; // positivo suma al total, negativo lo reduce (ej: vacíos devueltos)
+  resaltado: boolean; // en el comprobante se dibuja destacado, como con un resaltador
+}
+
+/** Pago a cuenta. No se edita ni se borra: si fue un error se ANULA (queda el rastro). */
+interface IRemitoEntrega {
+  monto: number;
+  fecha: Date;
+  usuario: mongoose.Types.ObjectId;
+  nota?: string;
+  anulada: boolean;
+  anulada_por?: mongoose.Types.ObjectId;
+  anulada_fecha?: Date;
+}
+
 export interface IRemito extends Document {
   numero_remito: number;
   fecha: Date;
   nombre_cliente: string;
   items: IRemitoItem[];
-  total: number;
+  ajustes: IRemitoAjuste[];
+  entregas: IRemitoEntrega[];
+  total: number; // productos + ajustes
+  entregado: number; // virtual: suma de entregas no anuladas
+  saldo: number; // virtual: total - entregado
   vendedor: mongoose.Types.ObjectId;
   estado: 'abierto' | 'cerrado';
   createdAt: Date;
@@ -75,6 +98,54 @@ const RemitoSchema: Schema = new Schema({
       min: 0
     }
   }],
+  ajustes: [{
+    concepto: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 100
+    },
+    monto: {
+      type: Number,
+      required: true
+    },
+    resaltado: {
+      type: Boolean,
+      default: false
+    }
+  }],
+  entregas: [{
+    monto: {
+      type: Number,
+      required: true,
+      min: 0.01
+    },
+    fecha: {
+      type: Date,
+      default: Date.now
+    },
+    usuario: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    nota: {
+      type: String,
+      trim: true,
+      maxlength: 100
+    },
+    anulada: {
+      type: Boolean,
+      default: false
+    },
+    anulada_por: {
+      type: Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    anulada_fecha: {
+      type: Date
+    }
+  }],
   total: {
     type: Number,
     required: true,
@@ -91,9 +162,23 @@ const RemitoSchema: Schema = new Schema({
     default: 'abierto'
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  id: false, // sin el alias "id" duplicado
+  toJSON: { virtuals: true } // para que `entregado` y `saldo` viajen en las respuestas
 });
 
+// Lo cobrado y lo que falta se CALCULAN siempre a partir de las entregas: no se guardan,
+// así nunca pueden quedar desincronizados con el detalle.
+RemitoSchema.virtual('entregado').get(function (this: any) {
+  return totalEntregado(this.entregas);
+});
+RemitoSchema.virtual('saldo').get(function (this: any) {
+  return redondear(this.total - totalEntregado(this.entregas));
+});
+
+
+   RemitoSchema.index({ estado: 1, numero_remito: -1 });
+   RemitoSchema.index({ vendedor: 1, numero_remito: -1 });
 
 // Auto-incrementar numero_remito
 RemitoSchema.pre('save', async function (this: any) {

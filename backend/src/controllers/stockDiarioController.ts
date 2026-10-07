@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import StockDiario from '../models/StockDiario';
 import Product from '../models/Product';
 import MovimientoStock from '../models/MovimientoStock';
+import { registrarMovimiento } from '../services/movimientosStock';
 
 // Registrar nuevo stock vigente para un producto (ej: llegó el camión)
 export const registrarStockDiario = async (req: Request, res: Response): Promise<void> => {
@@ -36,6 +37,14 @@ export const registrarStockDiario = async (req: Request, res: Response): Promise
     });
 
     await nuevoStock.save();
+
+    await registrarMovimiento({
+      producto,
+      tipo: 'stock_inicial',
+      cantidad_bultos: cantidad_bultos_inicial,
+      usuario: (req as any).usuario.id,
+      observaciones: 'Carga de stock'
+    });
 
     res.status(201).json({
       message: 'Stock registrado exitosamente como stock vigente',
