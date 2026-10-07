@@ -1,4 +1,4 @@
-import type { Remito, UnidadVenta } from '../types/remito';
+import type { EstadoPago, Remito, UnidadVenta } from '../types/remito';
 
 /** Texto de la unidad según la cantidad: 1 bulto / 2 bultos / 1 unidad / 25 unidades. */
 export const etiquetaUnidad = (cantidad: number, unidad: UnidadVenta) =>
@@ -7,7 +7,7 @@ export const etiquetaUnidad = (cantidad: number, unidad: UnidadVenta) =>
     : cantidad === 1 ? 'unidad' : 'unidades';
 
 /** Nombre del vendedor si el remito vino con el dato poblado; null si solo vino el id. */
-export const nombreVendedor = (r: Remito) =>
+export const nombreVendedor = (r: Pick<Remito, 'vendedor'>) =>
   typeof r.vendedor === 'object' ? r.vendedor.nombre : null;
 
 /*
@@ -16,13 +16,29 @@ export const nombreVendedor = (r: Remito) =>
  * su versión reemplaza a esta, así que si hubiera diferencias, gana siempre el servidor.
  */
 
-const sumar = (items: Remito['items']) => items.reduce((acc, it) => acc + it.subtotal, 0);
+/** Redondeo a centavos, igual que el servidor. */
+export const redondear = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+/** Total = productos + ajustes (que pueden ser negativos). */
+export const totalDe = (items: Remito['items'], ajustes: Remito['ajustes']) =>
+  redondear(items.reduce((acc, it) => acc + it.subtotal, 0) + ajustes.reduce((acc, a) => acc + a.monto, 0));
+
+/** Mismo remito con otros ítems: recalcula el total y el saldo (lo entregado no cambia). */
+const conItems = (r: Remito, items: Remito['items']): Remito => {
+  const total = totalDe(items, r.ajustes);
+  return { ...r, items, total, saldo: redondear(total - r.entregado) };
+};
+
+/** Cobro derivado: sin entregas = pendiente; con algo entregado, parcial o pagado según cubra el total. */
+export const estadoPagoDe = (total: number, entregado: number): EstadoPago =>
+  entregado <= 0 ? 'pendiente' : entregado >= total ? 'pagado' : 'parcial';
+
+/** Entregas vigentes (sin las anuladas). */
+export const entregasVigentes = (r: Pick<Remito, 'entregas'>) => r.entregas.filter((e) => !e.anulada);
 
 /** El remito sin ese ítem (y con el total recalculado). */
-export const sinItem = (r: Remito, itemId: string): Remito => {
-  const items = r.items.filter((it) => it._id !== itemId);
-  return { ...r, items, total: sumar(items) };
-};
+export const sinItem = (r: Remito, itemId: string): Remito =>
+  conItems(r, r.items.filter((it) => it._id !== itemId));
 
 /** El remito con otra cantidad en un ítem: recalcula subtotal, bultos consumidos y total. */
 export const conCantidad = (r: Remito, itemId: string, cantidad: number): Remito => {
@@ -36,7 +52,7 @@ export const conCantidad = (r: Remito, itemId: string, cantidad: number): Remito
           bultos_consumidos: it.unidad_venta === 'bulto' ? cantidad : 0,
         },
   );
-  return { ...r, items, total: sumar(items) };
+  return conItems(r, items);
 };
 
 export const conEstado = (r: Remito, estado: Remito['estado']): Remito => ({ ...r, estado });

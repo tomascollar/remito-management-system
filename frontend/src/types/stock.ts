@@ -37,3 +37,20 @@ export interface PrecioInput {
   precio_bulto?: number;
   precio_unidad?: number;
 }
+
+// ---- Historial de movimientos de stock (auditoría) ----
+
+export type TipoMovimiento = 'stock_inicial' | 'entrada_adicional' | 'ajuste' | 'venta' | 'devolucion';
+
+// Un movimiento del historial. Los datos relacionados vienen resueltos (populate);
+// pueden ser null si el producto, usuario o remito ya no existe.
+export interface MovimientoStock {
+  _id: string;
+  fecha: string;
+  tipo: TipoMovimiento;
+  cantidad_bultos: number; // negativo = salieron bultos, positivo = entraron
+  producto: { _id: string; nombre: string; categoria?: string } | null;
+  usuario: { _id: string; nombre: string; email: string } | null;
+  remito?: { _id: string; numero_remito: number; nombre_cliente: string } | null;
+  observaciones?: string;
+}

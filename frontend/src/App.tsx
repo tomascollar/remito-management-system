@@ -12,6 +12,8 @@ import NuevoRemito from './pages/remitos/NuevoRemito';
 import Remitos from './pages/remitos/Remitos';
 import RemitoDetalle from './pages/remitos/RemitoDetalle';
 import Usuarios from './pages/usuarios/Usuarios';
+import HistorialStock from './pages/stock/HistorialStock';
+import Laboratorio from './pages/laboratorio/Laboratorio';
 
 
 export default function App() {
@@ -26,17 +28,22 @@ export default function App() {
             <Route element={<AppLayout />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/nuevo-remito" element={<NuevoRemito />} />
-<Route path="/remitos" element={<Remitos />} />
-<Route path="/remitos/:id" element={<RemitoDetalle />} />
+              <Route path="/remitos" element={<Remitos />} />
+              <Route path="/remitos/:id" element={<RemitoDetalle />} />
               <Route path="/stock" element={<Stock />} />   {/* reemplaza el Placeholder de /stock */}
+              <Route path="/historial-stock" element={<HistorialStock />} />
+    
+
 
               {/* Rutas por rol: los roles salen de la misma config que arma el menú */}
               <Route element={<ProtectedRoute roles={rolesDe('/productos')} />}>
                 <Route path="/productos" element={<Productos />} />
               </Route>
               <Route element={<ProtectedRoute roles={rolesDe('/usuarios')} />}>
-                <Route path="/usuarios" element={<Usuarios />} />
+              <Route path="/laboratorio" element={<Laboratorio />} />
+             <Route path="/usuarios" element={<Usuarios />} />
               </Route>
+              
             </Route>
           </Route>
 

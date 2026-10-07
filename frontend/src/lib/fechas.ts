@@ -14,3 +14,11 @@ export const inicioDeHoy = () => {
   d.setHours(0, 0, 0, 0);
   return d.toISOString();
 };
+
+/** Medianoche de hace `dias` días (hora local) en ISO. Con 0 es igual a `inicioDeHoy()`. */
+export const inicioHaceDias = (dias: number) => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - dias);
+  return d.toISOString();
+};

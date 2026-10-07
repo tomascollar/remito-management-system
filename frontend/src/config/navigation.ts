@@ -1,7 +1,10 @@
 import {
-  LayoutDashboard, FilePlus2, FileText, Boxes, Package, Users, type LucideIcon,
+  LayoutDashboard, FilePlus2, FileText, Boxes, Package, Users, FlaskConical, type LucideIcon,
 } from 'lucide-react';
 import type { Rol } from '../types/auth';
+
+/** Roles con acceso a la gestión (productos, stock, historial). Una sola definición para que no se desalineen. */
+export const ROLES_ADMINISTRACION: Rol[] = ['superadmin', 'administrador'];
 
 export interface NavItem {
   label: string;
@@ -23,8 +26,10 @@ export const navItems: NavItem[] = [
   { label: 'Nuevo remito', path: '/nuevo-remito', icon: FilePlus2, mobile: 'fab' },
   { label: 'Remitos', path: '/remitos', icon: FileText, mobile: 'bar' },
   { label: 'Stock', path: '/stock', icon: Boxes, mobile: 'bar' },
-  { label: 'Productos', path: '/productos', icon: Package, roles: ['superadmin', 'administrador'], admin: true, mobile: 'more' },
+  { label: 'Productos', path: '/productos', icon: Package, roles: ROLES_ADMINISTRACION, admin: true, mobile: 'more' },
   { label: 'Usuarios', path: '/usuarios', icon: Users, roles: ['superadmin'], admin: true, mobile: 'more' },
+  // Demostración de seguridad: solo superadmin (y solo funciona si el servidor tiene SECURITY_LAB=true)
+  { label: 'Laboratorio', path: '/laboratorio', icon: FlaskConical, roles: ['superadmin'], admin: true, mobile: 'more' },
 ];
 
 export const rolLabel: Record<Rol, string> = {
@@ -37,5 +42,13 @@ export const rolLabel: Record<Rol, string> = {
 export const itemsParaRol = (rol: Rol) =>
   navItems.filter((i) => !i.roles || i.roles.includes(rol));
 
-/** Roles permitidos para una ruta; se usa en <ProtectedRoute roles={...}>. */
-export const rolesDe = (path: string) => navItems.find((i) => i.path === path)?.roles;
+/**
+ * Roles permitidos para una ruta; se usa en <ProtectedRoute roles={...}>.
+ * Si la ruta no existe en el menú lanza un error: devolver "undefined" dejaría la ruta SIN
+ * restricción (todos pasan), y un error de tipeo en la ruta abriría la puerta sin avisar.
+ */
+export const rolesDe = (path: string) => {
+  const item = navItems.find((i) => i.path === path);
+  if (!item) throw new Error(`rolesDe: la ruta "${path}" no está definida en navItems`);
+  return item.roles;
+};

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Boxes, Search, Settings2 } from 'lucide-react';
+import { Link } from 'react-router';
+import { Boxes, History, Search, Settings2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { GestionStock, type Accion } from './GestionStock';
@@ -83,9 +84,16 @@ export default function Stock() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold">Stock</h1>
-        <p className="text-sm text-muted">Stock vigente y precios de cada producto.</p>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Stock</h1>
+          <p className="text-sm text-muted">Stock vigente y precios de cada producto.</p>
+        </div>
+        {puedeGestionar && (
+          <Link to="/historial-stock" className="btn btn-soft shrink-0">
+            <History size={18} /> Historial
+          </Link>
+        )}
       </header>
 
       <div className="space-y-3">

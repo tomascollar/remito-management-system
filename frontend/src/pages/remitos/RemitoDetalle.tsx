@@ -5,16 +5,29 @@ import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { AgregarProducto } from './AgregarProducto';
 import { EditarCantidad } from './EditarCantidad';
+import { EstadoCobro } from './EstadoCobro';
 import { EstadoRemito } from './EstadoRemito';
-import { agregarItem, cerrarRemito, modificarCantidadItem, quitarItem, reabrirRemito } from '../../api/remitos';
+import { PagosRemito } from './PagosRemito';
+import {
+  agregarAjuste,
+  agregarItem,
+  anularEntrega,
+  cerrarRemito,
+  modificarCantidadItem,
+  quitarAjuste,
+  quitarItem,
+  reabrirRemito,
+  registrarEntrega,
+} from '../../api/remitos';
 import { useCatalogoVenta } from '../../hooks/useCatalogoVenta';
 import { useRemito } from '../../hooks/useRemito';
 import { getErrorMessage } from '../../lib/errors';
 import { formatFechaHora } from '../../lib/fechas';
 import { formatCantidad, formatMoneda } from '../../lib/format';
-import { conCantidad, conEstado, etiquetaUnidad, nombreVendedor, sinItem } from '../../lib/remitos';
+import { conCantidad, conEstado, estadoPagoDe, etiquetaUnidad, nombreVendedor, sinItem } from '../../lib/remitos';
 import type { Producto } from '../../types/product';
-import type { Remito, RemitoItem, UnidadVenta } from '../../types/remito';
+import type { Remito, RemitoAjuste, RemitoEntrega, RemitoItem, UnidadVenta } from '../../types/remito';
+import { RemitoAcciones } from './RemitoAcciones';
 
 /** El key={id} reinicia todo el estado al pasar de un remito a otro. */
 export default function RemitoDetalle() {
@@ -115,6 +128,26 @@ function Detalle({ id }: { id: string }) {
   const agregar = (producto: Producto, cantidad: number, unidad: UnidadVenta) =>
     enviar(() => agregarItem(remito._id, { producto: producto._id, cantidad, unidad_venta: unidad }));
 
+  /** Ajustes y entregas esperan la respuesta del servidor (hace falta el _id real). El error se muestra en el modal. */
+  const cargarAjuste = (concepto: string, monto: number, resaltado: boolean) =>
+    enviar(() => agregarAjuste(remito._id, { concepto, monto, resaltado }));
+  const cargarEntrega = (monto: number, nota?: string) =>
+    enviar(() => registrarEntrega(remito._id, { monto, nota }));
+
+  /** Quitar un ajuste / anular una entrega: acciones directas, el error va a la barra de abajo. */
+  const quitarAjusteDe = (ajuste: RemitoAjuste) => {
+    setErrorAccion(null);
+    enviar(() => quitarAjuste(remito._id, ajuste._id)).catch((err) =>
+      setErrorAccion(getErrorMessage(err, 'No se pudo quitar el ajuste')),
+    );
+  };
+  const anularEntregaDe = (entrega: RemitoEntrega) => {
+    setErrorAccion(null);
+    enviar(() => anularEntrega(remito._id, entrega._id)).catch((err) =>
+      setErrorAccion(getErrorMessage(err, 'No se pudo anular la entrega')),
+    );
+  };
+
   // Bultos libres de un producto, para no dejar sumar más de los que hay (undefined = no se sabe)
   const libres = (productoId: string) =>
     catalogo.filas.find((f) => f.producto._id === productoId)?.stock.cantidad_bultos_actual;
@@ -131,6 +164,7 @@ function Detalle({ id }: { id: string }) {
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-muted">Remito #{remito.numero_remito}</span>
             <EstadoRemito estado={remito.estado} />
+            <EstadoCobro estado={estadoPagoDe(remito.total, remito.entregado)} />
           </div>
           <h1 className="text-2xl font-bold">{remito.nombre_cliente}</h1>
           <p className="text-xs text-muted">
@@ -138,6 +172,7 @@ function Detalle({ id }: { id: string }) {
             {vendedor ? ` · ${vendedor}` : ''}
           </p>
         </header>
+        <RemitoAcciones remito={remito} />
       </div>
 
       {remito.items.length === 0 ? (
@@ -207,6 +242,14 @@ function Detalle({ id }: { id: string }) {
         </ul>
       )}
 
+      <PagosRemito
+        remito={remito}
+        onAgregarAjuste={cargarAjuste}
+        onQuitarAjuste={quitarAjusteDe}
+        onRegistrarEntrega={cargarEntrega}
+        onAnularEntrega={anularEntregaDe}
+      />
+
       {/* Barra fija: total siempre visible y acciones al alcance del pulgar (sobre la barra inferior en celular).
           Los errores van acá y no arriba de la página, para que se vean aunque se haya bajado con el scroll. */}
       <div className="card sticky bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-30 space-y-3 p-4 md:bottom-4">
@@ -216,10 +259,24 @@ function Detalle({ id }: { id: string }) {
           </p>
         )}
 
-        <div className="flex items-baseline justify-between">
-          <span className="text-sm text-muted">Total</span>
-          <span className="text-2xl font-bold">{formatMoneda(remito.total)}</span>
-        </div>
+        {remito.entregado > 0 ? (
+          // Con entregas, lo importante es lo que falta pagar: va grande y el total original, chico
+          <>
+            <div className="flex items-baseline justify-between text-sm text-muted">
+              <span>Total {formatMoneda(remito.total)}</span>
+              <span>Entregado {formatMoneda(remito.entregado)}</span>
+            </div>
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm font-medium">{remito.saldo < 0 ? 'A favor del cliente' : 'A pagar'}</span>
+              <span className="text-3xl font-bold">{formatMoneda(Math.abs(remito.saldo))}</span>
+            </div>
+          </>
+        ) : (
+          <div className="flex items-baseline justify-between">
+            <span className="text-sm text-muted">Total</span>
+            <span className="text-2xl font-bold">{formatMoneda(remito.total)}</span>
+          </div>
+        )}
 
         {abierto ? (
           <div className="flex gap-3">

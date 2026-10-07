@@ -1,17 +1,17 @@
 import { useState } from 'react';
-import { useForm, useWatch, Controller } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CircleX } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-//import { Toggle } from '../../components/ui/Toggle';
+import { Toggle } from '../../components/ui/Toggle';
 import { createProducto, updateProducto } from '../../api/products';
 import { getErrorMessage } from '../../lib/errors';
 import { productoSchema, type ProductoFormValues } from '../../lib/schemas';
 import type { Producto, ProductoInput } from '../../types/product';
 import { Select } from '../../components/ui/Select';
 import { CATEGORIAS, aCatalogo } from '../../lib/catalogos';
-import { Segmented } from '../../components/ui/Segmented';
+//import { Segmented } from '../../components/ui/Segmented';
 
 interface Props {
   producto: Producto | null; // null = alta de un producto nuevo
@@ -94,22 +94,13 @@ export function ProductoForm({ producto, onSaved }: Props) {
       />
 
 
-
-  <Controller
-  name="permite_venta_fraccionada"
-  control={control}
-  render={({ field }) => (
-    <Segmented
-      label="Forma de venta"
-      value={field.value ? 'unidad' : 'bulto'}
-      onChange={(v) => field.onChange(v === 'unidad')}
-      options={[
-        { id: 'bulto', label: 'Solo bulto cerrado' },
-        { id: 'unidad', label: 'Bulto o unidad' },
-      ]}
-    />
-  )}
+<Toggle
+  label="Permite venta fraccionada"
+  hint="Se puede vender por unidad, además de por bulto. El stock solo se descuenta al vender bultos."
+  {...register('permite_venta_fraccionada')}
 />
+
+
 <p className="-mt-2 text-xs text-muted">
   El stock solo se descuenta al vender bultos cerrados.
 </p>

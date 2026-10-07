@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Pencil, Plus, UserCheck, UserX } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Pencil, Plus, Search, UserCheck, UserX, X } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { UsuarioForm } from './UsuarioForm';
@@ -7,8 +7,17 @@ import { actualizarUsuario } from '../../api/users';
 import { useAuth } from '../../context/useAuth';
 import { useUsuarios } from '../../hooks/useUsuarios';
 import { getErrorMessage } from '../../lib/errors';
-import { etiquetaRol } from '../../lib/usuarioSchemas';
+import { normalizar } from '../../lib/format';
+import { ROLES, etiquetaRol } from '../../lib/usuarioSchemas';
 import type { UsuarioAdmin } from '../../types/auth';
+
+type FiltroRol = 'todos' | UsuarioAdmin['rol'];
+type FiltroEstado = 'todos' | 'activos' | 'inactivos';
+
+const chip = (activo: boolean) =>
+  `cursor-pointer rounded-full px-4 py-1.5 text-sm font-medium transition ${
+    activo ? 'bg-primary-600 text-white' : 'bg-surface text-muted ring-1 ring-black/5 hover:text-ink'
+  }`;
 
 /** Qué diálogo está abierto: alta, edición de un usuario, o confirmación de desactivar. */
 type Dialogo = { tipo: 'nuevo' } | { tipo: 'editar'; usuario: UsuarioAdmin } | { tipo: 'desactivar'; usuario: UsuarioAdmin } | null;
@@ -20,6 +29,21 @@ export default function Usuarios() {
   const [dialogo, setDialogo] = useState<Dialogo>(null);
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
   const [procesando, setProcesando] = useState(false);
+  const [busqueda, setBusqueda] = useState('');
+  const [rol, setRol] = useState<FiltroRol>('todos');
+  const [estado, setEstado] = useState<FiltroEstado>('todos');
+
+  // Son pocos usuarios, así que se filtra en el navegador: por nombre o email (sin tildes ni
+  // mayúsculas), por rol y por estado. Los tres filtros se combinan.
+  const visibles = useMemo(() => {
+    const q = normalizar(busqueda.trim());
+    return usuarios.filter(
+      (u) =>
+        (rol === 'todos' || u.rol === rol) &&
+        (estado === 'todos' || (estado === 'activos') === u.activo) &&
+        (!q || normalizar(`${u.nombre} ${u.email}`).includes(q)),
+    );
+  }, [usuarios, busqueda, rol, estado]);
 
   const cerrar = () => { setDialogo(null); setErrorAccion(null); };
   const terminado = () => { cerrar(); reload(); };
@@ -48,6 +72,43 @@ export default function Usuarios() {
         <Button onClick={() => setDialogo({ tipo: 'nuevo' })}><Plus size={18} /> Nuevo</Button>
       </header>
 
+      <div className="space-y-3">
+        <div className="relative">
+          <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
+          <input
+            className="input pl-11 pr-11"
+            placeholder="Buscar por nombre o email"
+            aria-label="Buscar por nombre o email"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+          />
+          {busqueda && (
+            <button
+              type="button"
+              aria-label="Borrar búsqueda"
+              onClick={() => setBusqueda('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer rounded-full p-1 text-muted hover:text-ink"
+            >
+              <X size={18} />
+            </button>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por rol">
+          {([{ id: 'todos', label: 'Todos los roles' }, ...ROLES] as { id: FiltroRol; label: string }[]).map(({ id, label }) => (
+            <button key={id} onClick={() => setRol(id)} aria-pressed={rol === id} className={chip(rol === id)}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por estado">
+          {(['todos', 'activos', 'inactivos'] as FiltroEstado[]).map((id) => (
+            <button key={id} onClick={() => setEstado(id)} aria-pressed={estado === id} className={chip(estado === id)}>
+              {id === 'todos' ? 'Todos' : id === 'activos' ? 'Activos' : 'Inactivos'}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {loading ? (
         <p className="py-10 text-center text-sm text-muted">Cargando usuarios…</p>
       ) : error ? (
@@ -55,9 +116,13 @@ export default function Usuarios() {
           <p className="text-sm text-danger-700">{error}</p>
           <Button variant="soft" onClick={reload}>Reintentar</Button>
         </div>
+      ) : visibles.length === 0 ? (
+        <p className="py-10 text-center text-sm text-muted">
+          {usuarios.length === 0 ? 'Todavía no hay usuarios.' : 'No hay usuarios que coincidan.'}
+        </p>
       ) : (
         <ul className="space-y-3">
-          {usuarios.map((u) => {
+          {visibles.map((u) => {
             const esPropio = u._id === yo?.id;
             return (
               <li key={u._id} className={`card flex items-center gap-3 p-4 ${u.activo ? '' : 'opacity-60'}`}>

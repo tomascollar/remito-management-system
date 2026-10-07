@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { NuevoStockInput, PrecioInput, StockVigente } from '../types/stock';
+import type { MovimientoStock, NuevoStockInput, PrecioInput, StockVigente, TipoMovimiento } from '../types/stock';
 
 /** Stock vigente de todos los productos que tienen stock cargado. */
 export async function listStock() {
@@ -28,4 +28,33 @@ export async function actualizarPrecio(productoId: string, input: PrecioInput) {
 /** Corrección manual: cantidad positiva suma, negativa resta. Queda registrada como movimiento. */
 export async function ajustarStock(productoId: string, cantidad_bultos: number, observaciones?: string) {
   await api.patch(`/stock-diario/${productoId}/ajuste`, { cantidad_bultos, observaciones });
+}
+
+export interface FiltroMovimientos {
+  tipo?: TipoMovimiento;
+  producto?: string; // id de producto
+  desde?: string; // ISO: solo movimientos desde esa fecha
+  pagina?: number; // empieza en 1
+  limite?: number;
+}
+
+/** Una página del historial, con el total para saber si quedan más por cargar. */
+export interface PaginaMovimientos {
+  movimientos: MovimientoStock[];
+  total: number;
+  pagina: number;
+  limite: number;
+  totalPaginas: number;
+}
+
+/** Historial de movimientos de stock (solo administración), los más nuevos primero. */
+export async function listMovimientos(filtro: FiltroMovimientos = {}) {
+  const params: Record<string, string | number> = {};
+  if (filtro.tipo) params.tipo = filtro.tipo;
+  if (filtro.producto) params.producto = filtro.producto;
+  if (filtro.desde) params.fecha_desde = filtro.desde;
+  if (filtro.pagina) params.pagina = filtro.pagina;
+  if (filtro.limite) params.limite = filtro.limite;
+  const { data } = await api.get<PaginaMovimientos>('/stock-diario/movimientos', { params });
+  return data;
 }

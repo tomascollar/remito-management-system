@@ -15,6 +15,28 @@ export interface RemitoItem {
   subtotal: number;
 }
 
+/** Línea sin producto ni stock: "saldo anterior", descuento, recargo. Positivo suma, negativo resta. */
+export interface RemitoAjuste {
+  _id: string;
+  concepto: string;
+  monto: number; // negativo = descuento (ej: vacíos devueltos)
+  resaltado: boolean; // se dibuja destacado en el comprobante
+}
+
+/** Pago a cuenta. Si fue un error se anula (no se borra), por eso conserva quién y cuándo. */
+export interface RemitoEntrega {
+  _id: string;
+  monto: number;
+  fecha: string;
+  usuario: string;
+  nota?: string;
+  anulada: boolean;
+  anulada_por?: string;
+  anulada_fecha?: string;
+}
+
+export type EstadoPago = 'pendiente' | 'parcial' | 'pagado';
+
 export interface VendedorRef {
   _id: string;
   nombre: string;
@@ -27,11 +49,35 @@ export interface Remito {
   fecha: string;
   nombre_cliente: string;
   items: RemitoItem[];
-  total: number;
+  ajustes: RemitoAjuste[];
+  entregas: RemitoEntrega[];
+  total: number; // productos + ajustes
+  entregado: number; // suma de las entregas no anuladas (lo calcula el servidor)
+  saldo: number; // total - entregado; negativo = el cliente pagó de más
   // GET devuelve el vendedor poblado; las respuestas de crear/agregar/quitar solo el id
   vendedor: string | VendedorRef;
   estado: 'abierto' | 'cerrado';
   createdAt: string;
+}
+
+/**
+ * Remito tal como lo devuelve el listado: sin el detalle de ítems (solo cuántos tiene).
+ * El detalle completo se pide aparte con getRemito.
+ */
+export type RemitoResumen = Omit<Remito, 'items' | 'ajustes' | 'entregas'> & {
+  cantidad_items: number;
+  estado_pago: EstadoPago;
+};
+
+export interface AgregarAjusteInput {
+  concepto: string;
+  monto: number; // con signo, distinto de 0
+  resaltado?: boolean;
+}
+
+export interface RegistrarEntregaInput {
+  monto: number;
+  nota?: string;
 }
 
 export interface AgregarItemInput {
