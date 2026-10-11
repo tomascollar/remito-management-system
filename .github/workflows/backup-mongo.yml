@@ -1,0 +1,39 @@
+# Backup diario de MongoDB Atlas → almacenamiento S3-compatible (Cloudflare R2 / Backblaze B2), cifrado con GPG.
+# Secrets requeridos (Settings → Secrets and variables → Actions):
+#   MONGODB_URI_BACKUP  URI de un usuario de Atlas SOLO LECTURA
+#   BACKUP_GPG_PASSPHRASE  frase para cifrar (guardala también fuera de GitHub: sin ella no se puede restaurar)
+#   S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY
+name: Backup MongoDB
+on:
+  schedule:
+    - cron: "17 5 * * *"   # 02:17 hora Argentina
+  workflow_dispatch: {}
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Instalar mongodump
+        run: |
+          curl -fsSL https://pgp.mongodb.com/server-8.0.asc | sudo gpg --dearmor -o /usr/share/keyrings/mongodb.gpg
+          echo "deb [signed-by=/usr/share/keyrings/mongodb.gpg] https://repo.mongodb.org/apt/ubuntu noble/mongodb-org/8.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb.list
+          sudo apt-get update -qq && sudo apt-get install -y -qq mongodb-database-tools
+      - name: Dump + cifrado
+        env:
+          MONGODB_URI_BACKUP: ${{ secrets.MONGODB_URI_BACKUP }}
+          BACKUP_GPG_PASSPHRASE: ${{ secrets.BACKUP_GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          FECHA=$(date -u +%Y-%m-%d)
+          mongodump --uri="$MONGODB_URI_BACKUP" --archive --gzip > dump.archive.gz
+          test -s dump.archive.gz
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$BACKUP_GPG_PASSPHRASE" \
+              --symmetric --cipher-algo AES256 -o "remitos-$FECHA.archive.gz.gpg" dump.archive.gz
+          rm dump.archive.gz
+          echo "ARCHIVO=remitos-$FECHA.archive.gz.gpg" >> "$GITHUB_ENV"
+      - name: Subir al bucket
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+        run: |
+          aws s3 cp "$ARCHIVO" "s3://${{ secrets.S3_BUCKET }}/mongo/$ARCHIVO" --endpoint-url "${{ secrets.S3_ENDPOINT }}"

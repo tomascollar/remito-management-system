@@ -1,0 +1,27 @@
+# Blueprint de Render: un solo Web Service que sirve la API y el frontend compilado (mismo origen).
+# Los secretos NO van acá: se cargan en el panel de Render (sync: false).
+services:
+  - type: web
+    name: remitos
+    runtime: node
+    plan: starter
+    region: virginia # la más cercana a un cluster de Atlas en AWS sao paulo east
+    healthCheckPath: /api/health
+    buildCommand: >-
+      npm --prefix frontend ci --include=dev &&
+      npm --prefix frontend run build &&
+      npm --prefix backend ci --include=dev &&
+      npm --prefix backend run build
+    startCommand: npm --prefix backend start
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 22
+      - key: TRUST_PROXY
+        value: "1"
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true # Render genera un valor aleatorio fuerte una sola vez
