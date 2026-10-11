@@ -20,7 +20,7 @@ services:
       - key: NODE_VERSION
         value: 22
       - key: TRUST_PROXY
-        value: "1"
+        value: "2"
       - key: MONGODB_URI
         sync: false
       - key: JWT_SECRET

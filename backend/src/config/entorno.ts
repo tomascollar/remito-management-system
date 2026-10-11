@@ -49,7 +49,7 @@ export const cargarEntorno = (env: NodeJS.ProcessEnv = process.env): Entorno => 
 
   // --- Proxy de confianza: sin esto, detrás de Render todas las peticiones parecen venir de la misma IP
   //     y el límite de intentos de login bloquearía a todos a la vez (o se podría falsear la IP). ---
-  let trustProxy: number | false = produccion ? 1 : false;
+  let trustProxy: number | false = produccion ? 2 : false;
   if (env.TRUST_PROXY !== undefined && env.TRUST_PROXY !== '') {
     const n = Number(env.TRUST_PROXY);
     if (env.TRUST_PROXY === 'false') trustProxy = false;
