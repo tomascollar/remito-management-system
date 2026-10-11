@@ -3,6 +3,7 @@ node_modules/
 
 # Variables de entorno (CRÍTICO - NO SUBIR)
 .env
+.env.example
 
 # Archivos de build
 dist/
