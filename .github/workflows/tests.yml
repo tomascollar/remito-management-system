@@ -21,8 +21,8 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
-      - run: npx tsc --noEmit   # el código compila sin errores de tipos
-      - run: npm test           # Jest + Supertest
+      - run: npx tsc --noEmit # el código compila sin errores de tipos
+      - run: npm test # Jest + Supertest
 
   frontend:
     runs-on: ubuntu-latest
@@ -38,5 +38,5 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run lint
-      - run: npx vitest run
-      - run: npm run build      # compila tipos y genera el frontend de producción
+      - run: npm test
+      - run: npm run build # compila tipos y genera el frontend de producción
