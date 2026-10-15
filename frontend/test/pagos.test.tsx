@@ -35,7 +35,7 @@ const ui = () =>
 
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.mocked(acciones.crearArchivos).mockResolvedValue({ digital: {}, ticket: {} } as any);
+  vi.mocked(acciones.crearArchivos).mockResolvedValue({ digital: {}, imagenes: [], ticket: {} } as any);
 });
 
 describe('cálculos locales', () => {

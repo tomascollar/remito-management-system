@@ -5,10 +5,11 @@ import { abrirParaImprimir, compartir, crearArchivos, descargar, type ArchivosRe
 import type { Remito } from '../../types/remito';
 
 /**
- * Botones para sacar el remito de la app: Compartir (PDF A5 por WhatsApp o mail),
- * Descargar (el mismo PDF) e Imprimir (ticket de 80 mm para la térmica).
+ * Botones para sacar el remito de la app: Compartir (imágenes PNG del remito por WhatsApp o mail,
+ * porque algunos celulares no abren PDF), Descargar (el PDF A5) e Imprimir (ticket de 80 mm para
+ * la térmica).
  *
- * Los PDFs se generan por adelantado y se regeneran cada vez que cambia el remito. Así, cuando
+ * Los archivos se generan por adelantado y se regeneran cada vez que cambia el remito. Así, cuando
  * se toca un botón el archivo ya está listo, algo necesario para que iOS permita compartir.
  */
 export function RemitoAcciones({ remito }: { remito: Remito }) {
@@ -29,7 +30,7 @@ export function RemitoAcciones({ remito }: { remito: Remito }) {
     if (!archivos) return;
     setAviso(null);
     try {
-      await compartir(archivos.digital, remito);
+      await compartir(archivos);
     } catch {
       setAviso('No se pudo compartir el remito');
     }
