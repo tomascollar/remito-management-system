@@ -18,7 +18,7 @@ import productRoutes from './productRoutes';
 import remitoRoutes from './remitoRoutes';
 import stockDiarioRoutes from './stockDiarioRoutes';
 import userRoutes from './userRoutes';
-
+import impresionRoutes from './impresionRoutes';
 /**
  * Rutas del Laboratorio de seguridad. Se montan en server.ts SOLO si SECURITY_LAB=true,
  * y además exigen sesión y rol superadmin.
@@ -44,6 +44,7 @@ router.get(
     { prefijo: '/api/stock-diario', router: stockDiarioRoutes },
     { prefijo: '/api/remitos', router: remitoRoutes },
     { prefijo: '/api/users', router: userRoutes },
+    { prefijo: '/api/impresion', router: impresionRoutes },
   ])
 );
 

@@ -21,8 +21,8 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
-      - run: npx tsc --noEmit # el código compila sin errores de tipos
-      - run: npm test # Jest + Supertest
+      - run: npx tsc --noEmit   # el código compila sin errores de tipos
+      - run: npm test           # Jest + Supertest
 
   frontend:
     runs-on: ubuntu-latest
@@ -38,5 +38,21 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run lint
-      - run: npm test
-      - run: npm run build # compila tipos y genera el frontend de producción
+      - run: npx vitest run
+      - run: npm run build      # compila tipos y genera el frontend de producción
+
+  agente:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agente-impresion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: agente-impresion/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm test           # incluye pruebas con un servidor HTTP y una "impresora" TCP simulados

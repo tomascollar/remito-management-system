@@ -1,5 +1,6 @@
 import type { Remito } from '../../types/remito';
 import { nombreArchivo } from './comun';
+import { cargarPdfjs } from './pdfjs';
 
 /**
  * Los archivos de un remito: el PDF A5 (para descargar), las imágenes PNG de ese mismo PDF
@@ -17,17 +18,10 @@ const ESCALA_IMAGEN = 2.5;
 
 /**
  * Convierte cada hoja de un PDF en una imagen PNG con exactamente el mismo diseño.
- * pdf.js se carga recién acá (import dinámico) y se usa su versión "legacy" para que funcione
- * también en celulares con navegadores viejos. Si el PDF tiene varias hojas, los archivos se
- * nombran "… (1 de 2).png", "… (2 de 2).png" para que lleguen ordenados.
+ * Si el PDF tiene varias hojas, los archivos se nombran "… (1 de 2).png", "… (2 de 2).png" para que lleguen ordenados.
  */
 export async function pdfAImagenes(pdf: File, escala = ESCALA_IMAGEN): Promise<File[]> {
-  const [pdfjs, { default: urlWorker }] = await Promise.all([
-    import('pdfjs-dist/legacy/build/pdf.mjs'),
-    import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'),
-  ]);
-  pdfjs.GlobalWorkerOptions.workerSrc = urlWorker;
-
+  const pdfjs = await cargarPdfjs();
   const tarea = pdfjs.getDocument({ data: new Uint8Array(await pdf.arrayBuffer()) });
   const documento = await tarea.promise;
   const base = pdf.name.replace(/\.pdf$/i, '');

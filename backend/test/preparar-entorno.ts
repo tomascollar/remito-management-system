@@ -12,3 +12,4 @@ process.env.TRUST_PROXY = '0';
 process.env.CORS_ORIGIN = '';
 process.env.PORT = '5000';
 process.env.FRONTEND_DIST = '/ruta/que/no/existe'; // no se sirve ningún frontend compilado
+process.env.IMPRESION_AGENTE_TOKEN = 'token-del-agente-solo-para-pruebas-0123456789';
