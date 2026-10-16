@@ -22,6 +22,9 @@ import userRoutes from './routes/userRoutes';
 import securityLabRoutes from './routes/securityLabRoutes';
 import { limiteGeneral } from './middleware/rateLimiter';
 import { laboratorioActivo } from './security/securityConfig';
+import impresionRoutes from './routes/impresionRoutes';
+import impresionAgenteRoutes from './routes/impresionAgenteRoutes';
+import { limiteAgente, limiteFallosAgente, verificarAgente } from './middleware/agenteMiddleware';
 
 export const app: Application = express();
 
@@ -60,7 +63,8 @@ if (entorno.corsOrigenes.length > 0) {
   app.use(cors({ origin: entorno.corsOrigenes }));
 }
 
-app.use(express.json({ limit: '100kb' }));
+    const jsonGeneral = express.json({ limit: '100kb' });
+    app.use((req, res, next) => (req.method === 'POST' && req.path === '/api/impresion/trabajos' ? next() : jsonGeneral(req, res, next)));
 
 /** Chequeo de salud para la plataforma (Render lo consulta). Va antes del limitador a propósito. */
 app.get('/api/health', (_req, res) => {
@@ -76,6 +80,8 @@ if (laboratorioActivo()) {
   if (entorno.produccion) console.warn('⚠️  Estás en producción con el laboratorio ACTIVO. Desactivalo (SECURITY_LAB=false) cuando termine la demostración.');
 }
 
+app.use('/api/impresion/agente', limiteAgente, limiteFallosAgente, verificarAgente, impresionAgenteRoutes);
+
 // El límite general protege solo la API: cargar el frontend (muchos archivos) no debe gastar el cupo.
 app.use('/api', limiteGeneral);
 
@@ -84,6 +90,9 @@ app.use('/api/products', productRoutes);
 app.use('/api/stock-diario', stockDiarioRoutes);
 app.use('/api/remitos', remitoRoutes);
 app.use('/api/users', userRoutes);
+
+
+app.use('/api/impresion', impresionRoutes);
 
 // Cualquier otra ruta de /api es un error 404 en JSON (no debe devolver la página del frontend)
 app.use('/api', (_req, res) => {

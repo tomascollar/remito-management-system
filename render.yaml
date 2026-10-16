@@ -24,4 +24,6 @@ services:
       - key: MONGODB_URI
         sync: false
       - key: JWT_SECRET
-        generateValue: true # Render genera un valor aleatorio fuerte una sola vez
+        generateValue: true
+      - key: IMPRESION_AGENTE_TOKEN
+        generateValue: true
