@@ -1,0 +1,23 @@
+# .gitignore de la raíz: red de seguridad para todo el repo.
+# Cada subproyecto (backend, frontend, agente-impresion) tiene además el suyo.
+
+# Variables de entorno: nunca se suben (contienen secretos).
+.env
+.env.*
+!.env.example
+
+# Dependencias y builds
+node_modules/
+dist/
+build/
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema operativo y editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
