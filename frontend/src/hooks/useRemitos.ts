@@ -9,6 +9,7 @@ interface Opciones {
   soloHoy?: boolean;
   vendedor?: string; // id: solo los remitos de ese vendedor
   q?: string; // búsqueda por cliente o número
+  orden?: 'recientes' | 'alfabetico'; // por defecto, los últimos creados primero
 }
 
 /** Lo ya cargado para una combinación de filtros (`clave`). */
@@ -21,11 +22,12 @@ interface Cargado {
 }
 
 /** Arma el filtro de la API. La fecha de "hoy" se calcula al pedir (no al renderizar). */
-const construirFiltro = ({ estado, soloHoy, vendedor, q }: Opciones, pagina: number): FiltroRemitos => ({
+const construirFiltro = ({ estado, soloHoy, vendedor, q, orden }: Opciones, pagina: number): FiltroRemitos => ({
   estado,
   desde: soloHoy ? inicioDeHoy() : undefined,
   vendedor,
   q: q || undefined,
+  orden: orden === 'alfabetico' ? orden : undefined, // "recientes" es el comportamiento por defecto del servidor
   pagina,
 });
 
@@ -44,7 +46,7 @@ const unir = (actuales: RemitoResumen[], nuevas: RemitoResumen[]) => {
  * - `reload()` vuelve a pedir desde la primera página.
  * - `loading` es true solo cuando todavía no hay nada para mostrar.
  */
-export function useRemitos({ estado, soloHoy, vendedor, q }: Opciones = {}) {
+export function useRemitos({ estado, soloHoy, vendedor, q, orden }: Opciones = {}) {
   const [version, setVersion] = useState(0);
   const [datos, setDatos] = useState<Cargado | null>(null);
   const [fallo, setFallo] = useState<{ clave: string; mensaje: string } | null>(null);
@@ -52,11 +54,11 @@ export function useRemitos({ estado, soloHoy, vendedor, q }: Opciones = {}) {
   const [errorMas, setErrorMas] = useState<string | null>(null);
 
   // Identifica la combinación actual de filtros: si cambia, lo cargado queda desactualizado
-  const clave = [estado ?? '', soloHoy ? 'hoy' : '', vendedor ?? '', q ?? '', version].join('|');
+  const clave = [estado ?? '', soloHoy ? 'hoy' : '', vendedor ?? '', q ?? '', orden ?? '', version].join('|');
 
   useEffect(() => {
     let cancelado = false; // si los filtros cambian antes de que llegue la respuesta, se descarta
-    listRemitos(construirFiltro({ estado, soloHoy, vendedor, q }, 1))
+    listRemitos(construirFiltro({ estado, soloHoy, vendedor, q, orden }, 1))
       .then((r) => {
         if (cancelado) return;
         setDatos({ clave, remitos: r.remitos, total: r.total, pagina: 1, totalPaginas: r.totalPaginas });
@@ -69,7 +71,7 @@ export function useRemitos({ estado, soloHoy, vendedor, q }: Opciones = {}) {
     return () => {
       cancelado = true;
     };
-  }, [clave, estado, soloHoy, vendedor, q]);
+  }, [clave, estado, soloHoy, vendedor, q, orden]);
 
   const actual = datos?.clave === clave;
   const error = fallo?.clave === clave ? fallo.mensaje : null;
@@ -80,7 +82,7 @@ export function useRemitos({ estado, soloHoy, vendedor, q }: Opciones = {}) {
     setCargandoMas(true);
     setErrorMas(null);
     try {
-      const r = await listRemitos(construirFiltro({ estado, soloHoy, vendedor, q }, datos.pagina + 1));
+      const r = await listRemitos(construirFiltro({ estado, soloHoy, vendedor, q, orden }, datos.pagina + 1));
       setDatos((prev) =>
         prev && prev.clave === datos.clave
           ? { ...prev, remitos: unir(prev.remitos, r.remitos), total: r.total, pagina: r.pagina, totalPaginas: r.totalPaginas }
@@ -91,7 +93,7 @@ export function useRemitos({ estado, soloHoy, vendedor, q }: Opciones = {}) {
     } finally {
       setCargandoMas(false);
     }
-  }, [datos, actual, cargandoMas, estado, soloHoy, vendedor, q]);
+  }, [datos, actual, cargandoMas, estado, soloHoy, vendedor, q, orden]);
 
   const reload = useCallback(() => setVersion((v) => v + 1), []);
 

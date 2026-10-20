@@ -1,11 +1,13 @@
 import { body, param } from 'express-validator';
+import { formatearNombre } from '../services/formatoNombre';
 
 export const validarCrearRemito = [
   body('nombre_cliente')
     .trim()
     .notEmpty().withMessage('El nombre del cliente es requerido')
     .isLength({ min: 2, max: 100 }).withMessage('El nombre debe tener entre 2 y 100 caracteres')
-  
+    // Se guarda siempre como "Nombre" (primera letra en mayúscula, el resto en minúscula), como lo escriba el usuario
+    .customSanitizer(formatearNombre)
 ];
 
 export const validarAgregarItem = [

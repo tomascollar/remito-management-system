@@ -6,6 +6,7 @@ export interface FiltroRemitos {
   desde?: string; // ISO: solo remitos desde esa fecha
   vendedor?: string; // id de usuario: solo los remitos de ese vendedor
   q?: string; // texto: busca por nombre de cliente o número de remito
+  orden?: 'recientes' | 'alfabetico'; // por defecto los últimos creados primero
   pagina?: number; // empieza en 1
   limite?: number;
 }
@@ -19,13 +20,14 @@ export interface PaginaRemitos {
   totalPaginas: number;
 }
 
-/** Lista remitos de a páginas (los más nuevos primero). Los filtros se aplican en el servidor. */
+/** Lista remitos de a páginas (los más nuevos primero, o por cliente de la A a la Z con `orden`). Los filtros se aplican en el servidor. */
 export async function listRemitos(filtro: FiltroRemitos = {}) {
   const params: Record<string, string | number> = {};
   if (filtro.estado) params.estado = filtro.estado;
   if (filtro.desde) params.fecha_desde = filtro.desde;
   if (filtro.vendedor) params.vendedor = filtro.vendedor;
   if (filtro.q) params.q = filtro.q;
+  if (filtro.orden) params.orden = filtro.orden;
   if (filtro.pagina) params.pagina = filtro.pagina;
   if (filtro.limite) params.limite = filtro.limite;
   const { data } = await api.get<PaginaRemitos>('/remitos', { params });

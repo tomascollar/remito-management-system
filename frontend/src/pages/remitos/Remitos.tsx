@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { Plus, Search, X } from 'lucide-react';
+import { ArrowDownAZ, Plus, Search, X } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { RemitoCard } from './RemitoCard';
 import { useAuth } from '../../context/useAuth';
@@ -28,6 +28,8 @@ export default function Remitos() {
   const { usuario } = useAuth();
   const [filtro, setFiltro] = useState<Filtro>('abiertos');
   const [soloMios, setSoloMios] = useState(false);
+  // Por defecto, los últimos creados primero; con "A–Z" se ordena por cliente (útil para cobrar por orden alfabético)
+  const [alfabetico, setAlfabetico] = useState(false);
   const [busqueda, setBusqueda] = useState('');
   // Se busca al dejar de escribir, no en cada tecla
   const q = useDebounce(busqueda.trim(), 350);
@@ -37,6 +39,7 @@ export default function Remitos() {
     soloHoy: filtro === 'hoy',
     vendedor: soloMios ? usuario?.id : undefined,
     q,
+    orden: alfabetico ? 'alfabetico' : 'recientes',
   });
 
   const hayFiltros = q !== '' || soloMios || filtro !== 'todos';
@@ -82,6 +85,9 @@ export default function Remitos() {
           ))}
           <button onClick={() => setSoloMios((v) => !v)} aria-pressed={soloMios} className={chip(soloMios)}>
             Míos
+          </button>
+          <button onClick={() => setAlfabetico((v) => !v)} aria-pressed={alfabetico} className={`${chip(alfabetico)} inline-flex items-center gap-1.5`}>
+            <ArrowDownAZ size={16} /> A–Z
           </button>
         </div>
       </div>
