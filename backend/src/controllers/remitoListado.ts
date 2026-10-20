@@ -25,6 +25,18 @@ export const regexInsensible = (texto: string): RegExp => {
 };
 
 /**
+ * Orden del listado (se resuelve en la base, así la paginación es coherente):
+ *  - "recientes" (por defecto): el último remito creado primero.
+ *  - "alfabetico": por nombre de cliente de la A a la Z. La collation "es" con strength 2 ignora
+ *    mayúsculas y tildes ("álvarez" queda junto a "Alvarez") y pone la ñ donde corresponde.
+ *    A igual cliente se desempata por número descendente, para que el orden sea estable entre páginas.
+ */
+export const ordenRemitos = (orden: unknown) =>
+  orden === 'alfabetico'
+    ? { sort: { nombre_cliente: 1, numero_remito: -1 } as Record<string, 1 | -1>, collation: { locale: 'es', strength: 2 } }
+    : { sort: { numero_remito: -1 } as Record<string, 1 | -1>, collation: undefined };
+
+/**
  * Arma el filtro de MongoDB a partir de los parámetros de la URL (ya validados).
  * `q` busca por número de remito ("12" o "#12") y por nombre de cliente.
  */
@@ -58,14 +70,19 @@ export const getRemitos = async (req: Request, res: Response): Promise<void> => 
     const pagina = Math.max(1, parseInt(req.query.pagina as string, 10) || 1);
     const limite = Math.min(LIMITE_MAXIMO, Math.max(1, parseInt(req.query.limite as string, 10) || LIMITE_POR_DEFECTO));
     const filtro = armarFiltroRemitos(req.query);
+    const { sort, collation } = ordenRemitos(req.query.orden);
 
     // La lista y el total se piden en paralelo. Se trae solo el id de cada ítem (no su detalle)
     // para poder contarlos sin transferir cientos de bytes por línea.
+    // La consulta se arma por partes: la collation solo se aplica cuando el orden la necesita (alfabético)
+    let consulta = Remito.find(filtro)
+      .select('numero_remito fecha nombre_cliente total estado vendedor createdAt items.producto entregas.monto entregas.anulada')
+      .populate('vendedor', 'nombre email')
+      .sort(sort);
+    if (collation) consulta = consulta.collation(collation);
+
     const [filas, total] = await Promise.all([
-      Remito.find(filtro)
-        .select('numero_remito fecha nombre_cliente total estado vendedor createdAt items.producto entregas.monto entregas.anulada')
-        .populate('vendedor', 'nombre email')
-        .sort({ numero_remito: -1 })
+      consulta
         .skip((pagina - 1) * limite)
         .limit(limite)
         .lean(),
