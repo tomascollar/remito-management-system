@@ -139,8 +139,11 @@ describe('pedir imprimir (personas)', () => {
     // alcanza a leer ese 401 o recibe la conexión cortada (ECONNRESET/EPIPE, frecuente en Windows). Ambos
     // resultados prueban lo mismo: el cuerpo enorme no se aceptó. Lo que NO puede pasar es que llegue a crear el trabajo.
     const resultado: any = await request(app).post('/api/impresion/trabajos').send({ datos: 'A'.repeat(500_000) }).then((r) => r, (e) => e);
-    if (resultado instanceof Error) expect(['ECONNRESET', 'EPIPE']).toContain((resultado as any).code);
+    
+        // (No se usa `instanceof Error`: dentro de Jest los errores de red vienen de otro contexto y esa comprobación da falso.)
+    if (resultado?.code) expect(['ECONNRESET', 'EPIPE']).toContain(resultado.code);
     else expect(resultado.status).toBe(401);
+    
     expect(crear).not.toHaveBeenCalled();
   });
 
