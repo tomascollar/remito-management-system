@@ -139,7 +139,7 @@ function dibujar(doc: jsPDF, r: Remito, negocio: string): number {
     });
   }
 
-  const conEntregas = r.entregas.some((e) => !e.anulada); // las anuladas no cuentan
+    const conEntregas = r.entregas.some((e) => !e.anulada) || r.total < 0; // las anuladas no cuentan
 
   if (conEntregas) {
     // Con entregas, lo que le importa al cliente es lo que TODAVÍA debe: el total original y lo

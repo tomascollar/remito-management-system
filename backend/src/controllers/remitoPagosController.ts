@@ -28,11 +28,9 @@ export const agregarAjuste = async (req: Request, res: Response): Promise<void> 
     const concepto = String(req.body.concepto).trim();
 
     // Se verifica el total ANTES de tocar el documento
+    // Un total negativo ahora es valido (pedido usuario final): significa saldo a favor del cliente
     const nuevoTotal = calcularTotal(remito.items, [...remito.ajustes, { monto }]);
-    if (nuevoTotal < 0) {
-      res.status(400).json({ message: 'El ajuste dejaría el total del remito en negativo' });
-      return;
-    }
+
 
     remito.ajustes.push({ concepto, monto, resaltado: req.body.resaltado === true } as any);
     remito.total = nuevoTotal;
@@ -66,10 +64,6 @@ export const quitarAjuste = async (req: Request, res: Response): Promise<void> =
 
     const restantes = remito.ajustes.filter((a: any) => a._id.toString() !== req.params.ajusteId);
     const nuevoTotal = calcularTotal(remito.items, restantes);
-    if (nuevoTotal < 0) {
-      res.status(400).json({ message: 'Quitar este ajuste dejaría el total del remito en negativo' });
-      return;
-    }
 
     (remito.ajustes as any).pull(req.params.ajusteId);
     remito.total = nuevoTotal;
