@@ -267,7 +267,7 @@ function Detalle({ id }: { id: string }) {
               <span>Entregado {formatMoneda(remito.entregado)}</span>
             </div>
             <div className="flex items-baseline justify-between">
-              <span className="text-sm font-medium">{remito.saldo < 0 ? 'A favor del cliente' : 'A pagar'}</span>
+              <span className="text-sm font-medium">{remito.saldo < 0 ? 'A su favor' : 'A pagar'}</span>
               <span className="text-3xl font-bold">{formatMoneda(Math.abs(remito.saldo))}</span>
             </div>
           </>

@@ -24,11 +24,15 @@ export function FormEntrega({ saldo, onGuardar }: Props) {
 
   const monto = aNumero(texto);
   const valido = texto.trim() !== '' && Number.isFinite(monto) && monto > 0;
-  const excede = valido && monto > saldo;
+  
+  //Esto es cuando deberia quedar a favor del cliente si la entrega supera al saldo
+  //a pedido del usuario final
+  const sobrante = valido ? Math.round((monto - saldo) * 100) / 100 : 0;
+
   const notaInvalida = /[<>]/.test(nota);
 
   const guardar = async () => {
-    if (!valido || excede || notaInvalida) return;
+    if (!valido || notaInvalida) return;
     setEnviando(true);
     setError(null);
     try {
@@ -67,17 +71,25 @@ export function FormEntrega({ saldo, onGuardar }: Props) {
         placeholder="0"
         value={texto}
         onChange={(e) => setTexto(e.target.value)}
-        error={excede ? `No puede superar el saldo (${formatMoneda(saldo)})` : undefined}
         trailing={
-          <button
-            type="button"
-            className="cursor-pointer text-xs font-semibold text-primary-700"
-            onClick={() => setTexto(String(saldo).replace('.', ','))}
-          >
-            Todo
-          </button>
+          saldo > 0 ? (
+            <button
+              type="button"
+              className="cursor-pointer text-xs font-semibold text-primary-700"
+              onClick={() => setTexto(String(saldo).replace('.', ','))}
+            >
+              Todo
+            </button>
+          ) : undefined
         }
       />
+
+            {/* Aviso informativo: la entrega supera el saldo, el excedente queda a favor del cliente */}
+      {sobrante > 0 && (
+        <p className="text-sm font-medium text-warning-700">
+          Queda a favor del cliente: {formatMoneda(sobrante)}
+        </p>
+      )}
 
       <Input
         label="Nota (opcional)"
@@ -90,7 +102,7 @@ export function FormEntrega({ saldo, onGuardar }: Props) {
         error={notaInvalida ? 'No puede contener < ni >' : undefined}
       />
 
-      <Button type="submit" large className="w-full" loading={enviando} disabled={!valido || excede || notaInvalida}>
+      <Button type="submit" large className="w-full" loading={enviando} disabled={!valido || notaInvalida}>
         Registrar entrega
       </Button>
     </form>

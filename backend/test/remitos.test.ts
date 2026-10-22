@@ -107,11 +107,12 @@ describe('Entregas parciales', () => {
     expect(remito.saldo).toBe(6000);
   });
 
-  test('una entrega mayor al saldo se rechaza', async () => {
-    const remito = crearRemito();
-    const r = await entrega({ monto: 10001 });
-    expect(r.status).toBe(400);
-    expect(remito.entregas).toHaveLength(0);
+    test('una entrega mayor al saldo se acepta: el excedente queda a favor del cliente', async () => {
+    const remito = crearRemito(); // total 10000
+    const r = await entrega({ monto: 10500 });
+    expect(r.status).toBe(201);
+    expect(remito.entregas).toHaveLength(1);
+    expect(remito.saldo).toBe(-500); // saldo negativo = a favor del cliente
   });
 
   test('con el remito cerrado SÍ se aceptan entregas (el cliente suele pagar después)', async () => {
@@ -119,10 +120,11 @@ describe('Entregas parciales', () => {
     expect((await entrega({ monto: 2500 })).status).toBe(201);
   });
 
-  test('con saldo cero ya no se aceptan más entregas', async () => {
-    crearRemito();
+    test('con saldo cero o a favor se siguen aceptando entregas (el cliente va transfiriendo)', async () => {
+    const remito = crearRemito();
     expect((await entrega({ monto: 10000 })).status).toBe(201);
-    expect((await entrega({ monto: 1 })).status).toBe(400);
+    expect((await entrega({ monto: 1500 })).status).toBe(201);
+    expect(remito.saldo).toBe(-1500);
   });
 
   test.each([

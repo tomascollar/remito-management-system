@@ -80,11 +80,9 @@ export function PagosRemito({ remito, onAgregarAjuste, onQuitarAjuste, onRegistr
       <section className="card space-y-3 p-4" aria-label="Entregas">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold">Entregas</h2>
-          {remito.saldo > 0 && (
             <Button variant="soft" className="px-3 py-1.5 text-sm" onClick={() => setEntregando(true)}>
               <Wallet size={16} /> Registrar entrega
             </Button>
-          )}
         </div>
 
         {hayEntregas && (
@@ -144,7 +142,7 @@ export function PagosRemito({ remito, onAgregarAjuste, onQuitarAjuste, onRegistr
             <dd className="font-semibold">{formatMoneda(remito.entregado)}</dd>
           </div>
           <div className="flex items-baseline justify-between">
-            <dt className="font-medium">{aFavor ? 'A favor del cliente' : 'A pagar'}</dt>
+            <dt className="font-medium">{aFavor ? 'A su favor' : 'A pagar'}</dt>
             <dd className={`text-xl font-bold ${remito.saldo === 0 && hayEntregas ? 'text-success-700' : ''}`}>
               {formatMoneda(Math.abs(remito.saldo))}
             </dd>

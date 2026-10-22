@@ -32,6 +32,9 @@ export function RemitoCard({ remito }: { remito: RemitoResumen }) {
           {remito.estado_pago === 'parcial' && (
             <p className="text-xs font-medium text-warning-700">Debe {formatMoneda(remito.saldo)}</p>
           )}
+          {remito.saldo < 0 && (
+           <p className="text-xs font-medium text-success-700">A favor {formatMoneda(-remito.saldo)}</p>
+          )}
         </div>
         <ChevronRight size={18} className="shrink-0 text-muted" />
       </Link>
