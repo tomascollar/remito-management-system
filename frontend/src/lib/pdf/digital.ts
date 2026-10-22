@@ -36,8 +36,9 @@ const ALTO_FILA = 7.5;
 const ALTO_PIE_BASE = 17;
 const ALTO_PIE_CON_ENTREGAS = 29; // más alto para sumar "Entregado" y el saldo
 
-/** ¿Hay entregas vigentes? Entonces el pie muestra lo entregado y el saldo. */
-const hayEntregas = (r: Remito) => r.entregas.some((e) => !e.anulada);
+/** ¿El pie lleva entregado y saldo? Sí si hay entregas vigentes 
+ * o si el total quedó a favor del cliente. */
+const hayEntregas = (r: Remito) => r.entregas.some((e) => !e.anulada) || r.total < 0;
 const altoPie = (r: Remito) => (hayEntregas(r) ? ALTO_PIE_CON_ENTREGAS : ALTO_PIE_BASE);
 const yPie = (r: Remito) => ALTO - MARGEN - altoPie(r);
 /** Cuántos renglones entran por hoja entre el encabezado de la tabla y el pie. */

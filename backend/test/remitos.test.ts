@@ -56,13 +56,12 @@ describe('Ajustes', () => {
     expect(remito.ajustes[1].resaltado).toBe(true);
   });
 
-  test('un ajuste que dejaría el total en negativo se rechaza y NO modifica el remito', async () => {
-    const remito = crearRemito();
-    const r = await ajuste({ concepto: 'Descuento excesivo', monto: -10001 });
-    expect(r.status).toBe(400);
-    expect(remito.total).toBe(10000);
-    expect(remito.ajustes).toHaveLength(0);
-    expect(remito.save).not.toHaveBeenCalled();
+    test('un ajuste que deja el total en negativo se acepta (saldo a favor del cliente)', async () => {
+    const remito = crearRemito(); // total 10000
+    const r = await ajuste({ concepto: 'Saldo a favor', monto: -10001 });
+    expect(r.status).toBe(201);
+    expect(remito.total).toBe(-1);
+    expect(remito.saldo).toBe(-1); // sin entregas: saldo = total, negativo = a favor
   });
 
   test('con el remito cerrado no se pueden agregar ajustes', async () => {
