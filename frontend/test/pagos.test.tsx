@@ -72,19 +72,20 @@ describe('detalle del remito: entregas', () => {
 
     expect(remitosApi.registrarEntrega).toHaveBeenCalledWith('r1', { monto: 3000, nota: undefined });
     expect(await screen.findAllByText('Pagado')).not.toHaveLength(0);
-    // ya no queda saldo: no se ofrece registrar más
-    expect(screen.queryByRole('button', { name: /Registrar entrega/ })).not.toBeInTheDocument();
+
+        // aunque no quede saldo, se puede seguir registrando entregas (saldo a favor del cliente)
+    expect(screen.getByRole('button', { name: /Registrar entrega/ })).toBeInTheDocument();
   });
 
-  it('no deja registrar más que el saldo', async () => {
-    vi.mocked(remitosApi.getRemito).mockResolvedValue(remito());
+    it('si la entrega supera el saldo lo permite y avisa cuánto queda a favor del cliente', async () => {
+    vi.mocked(remitosApi.getRemito).mockResolvedValue(remito()); // saldo 3000
     const user = userEvent.setup();
     ui();
     await user.click(await screen.findByRole('button', { name: /Registrar entrega/ }));
     await user.type(screen.getByLabelText('Monto entregado'), '3500');
-    expect(screen.getByText(/No puede superar el saldo/)).toBeInTheDocument();
+    expect(screen.getByText(/Queda a favor del cliente/)).toBeInTheDocument();
     const dialogo = screen.getByRole('dialog');
-    expect(within(dialogo).getByRole('button', { name: 'Registrar entrega' })).toBeDisabled();
+    expect(within(dialogo).getByRole('button', { name: 'Registrar entrega' })).toBeEnabled();
   });
 
   it('si el servidor rechaza la entrega, el error se ve en el formulario', async () => {

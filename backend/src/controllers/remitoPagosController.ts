@@ -100,16 +100,9 @@ export const registrarEntrega = async (req: Request, res: Response): Promise<voi
     }
 
     const monto = redondear(Number(req.body.monto));
-    const saldo = remito.saldo;
 
-    if (saldo <= 0) {
-      res.status(400).json({ message: 'El remito no tiene saldo pendiente' });
-      return;
-    }
-    if (monto > saldo) {
-      res.status(400).json({ message: `La entrega supera el saldo pendiente (${saldo})` });
-      return;
-    }
+    // Se permite entregar más que el saldo (o con saldo en 0): el excedente queda como
+    // saldo a favor del cliente (saldo negativo).
 
     remito.entregas.push({
       monto,

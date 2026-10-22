@@ -160,6 +160,7 @@ function dibujarPie(doc: jsPDF, r: Remito, ultima: boolean) {
   const n = r.items.length;
   doc.setTextColor(20).setFont('helvetica', 'normal').setFontSize(9);
   doc.text(`${n} ${n === 1 ? 'producto' : 'productos'}`, MARGEN + 4, Y_PIE + 6);
+  doc.setFontSize(hayEntregas(r) ? 8 : 9);
   doc.text(`ALIAS: LOLI.MERCADO.DANI`, MARGEN + 4, Y_PIE + (hayEntregas(r) ? 24 : 13)); // más abajo si el pie lleva entregas
 
   if (ultima) {
@@ -170,7 +171,7 @@ function dibujarPie(doc: jsPDF, r: Remito, ultima: boolean) {
       doc.setFontSize(9).text('ENTREGADO $', X_PRECIO - 4, Y_PIE + 12.5, { align: 'right' });
       doc.setFontSize(10).text(dinero(r.entregado), X_FIN - 3, Y_PIE + 12.5, { align: 'right' });
       doc.setDrawColor(60).setLineWidth(0.25).line(X_PRECIO - 30, Y_PIE + 15.2, X_FIN - 3, Y_PIE + 15.2);
-      doc.setFont('helvetica', 'bold').setFontSize(10).text(r.saldo < 0 ? 'A FAVOR $' : 'A PAGAR $', X_PRECIO - 4, Y_PIE + 24, { align: 'right' });
+      doc.setFont('helvetica', 'bold').setFontSize(10).text(r.saldo < 0 ? 'A SU FAVOR $' : 'A PAGAR $', X_PRECIO - 4, Y_PIE + 24, { align: 'right' });
       doc.setFontSize(20).text(dinero(Math.abs(r.saldo)), X_FIN - 3, Y_PIE + 24.6, { align: 'right' });
     } else {
       doc.setFont('helvetica', 'bold').setFontSize(9).text('TOTAL $', X_PRECIO - 4, Y_PIE + 10.5, { align: 'right' });
