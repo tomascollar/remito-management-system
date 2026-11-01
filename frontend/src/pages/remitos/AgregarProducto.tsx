@@ -12,8 +12,11 @@ import type { FilaVenta, UnidadVenta } from '../../types/remito';
 
 interface Props {
   filas: FilaVenta[];
-  /** Agrega el ítem al remito. Debe lanzar el error si falla, para mostrarlo en el formulario. */
-  onAgregar: (producto: Producto, cantidad: number, unidad: UnidadVenta) => Promise<void>;
+  /**
+   * Agrega el ítem al remito. `xBulto` indica que se vende por unidad al precio P.UxB.
+   * Debe lanzar el error si falla, para mostrarlo en el formulario.
+   */
+  onAgregar: (producto: Producto, cantidad: number, unidad: UnidadVenta, xBulto: boolean) => Promise<void>;
 }
 
 /**
@@ -41,8 +44,8 @@ export function AgregarProducto({ filas, onAgregar }: Props) {
       <CantidadForm
         fila={elegida}
         onVolver={() => setElegidaId(null)}
-        onAgregar={async (cantidad, unidad) => {
-          await onAgregar(elegida.producto, cantidad, unidad);
+        onAgregar={async (cantidad, unidad, xBulto) => {
+          await onAgregar(elegida.producto, cantidad, unidad, xBulto);
           setAviso(`Agregado: ${formatCantidad(cantidad)} ${etiquetaUnidad(cantidad, unidad)} de ${elegida.producto.nombre}`);
           setElegidaId(null);
           setBusqueda('');
@@ -99,6 +102,7 @@ export function AgregarProducto({ filas, onAgregar }: Props) {
                     <span className="block truncate text-xs text-muted">
                       Bulto {formatMoneda(stock.precio_bulto)}
                       {stock.precio_unidad ? ` · Unidad ${formatMoneda(stock.precio_unidad)}` : ''}
+                      {stock.precio_unidad_x_bulto ? ` · P.UxB ${formatMoneda(stock.precio_unidad_x_bulto)}` : ''}
                     </span>
                   </span>
                   <span className={`shrink-0 text-sm font-medium ${stock.cantidad_bultos_actual <= 0 ? 'text-danger-700' : ''}`}>
@@ -117,8 +121,11 @@ export function AgregarProducto({ filas, onAgregar }: Props) {
 interface CantidadProps {
   fila: FilaVenta;
   onVolver: () => void;
-  onAgregar: (cantidad: number, unidad: UnidadVenta) => Promise<void>;
+  onAgregar: (cantidad: number, unidad: UnidadVenta, xBulto: boolean) => Promise<void>;
 }
+
+/** Cómo se vende: por bulto, por unidad (precio común) o por unidad a precio P.UxB. */
+type Modo = 'bulto' | 'unidad' | 'x_bulto';
 
 /**
  * Elegir bulto o unidad (si el producto es fraccionable) y la cantidad, con botones
@@ -130,24 +137,28 @@ function CantidadForm({ fila, onVolver, onAgregar }: CantidadProps) {
   const { producto, stock } = fila;
   const fraccionable = producto.permite_venta_fraccionada;
 
-  const [unidad, setUnidad] = useState<UnidadVenta>('bulto');
+  const [modo, setModo] = useState<Modo>('bulto');
   const [texto, setTexto] = useState('1');
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
   const cantidad = aNumero(texto);
   const valida = Number.isFinite(cantidad) && cantidad > 0;
-  const precio = unidad === 'bulto' ? stock.precio_bulto : (stock.precio_unidad ?? 0);
-  const sinPrecio = unidad === 'unidad' && !stock.precio_unidad;
+  // P.UxB se vende por unidad: a la API le llega unidad_venta 'unidad' + el indicador xBulto
+  const unidad: UnidadVenta = modo === 'bulto' ? 'bulto' : 'unidad';
+  const xBulto = modo === 'x_bulto';
+  const precio =
+    modo === 'bulto' ? stock.precio_bulto : modo === 'x_bulto' ? (stock.precio_unidad_x_bulto ?? 0) : (stock.precio_unidad ?? 0);
+  const sinPrecio = modo === 'unidad' && !stock.precio_unidad;
   // Solo las ventas por bulto descuentan (y por lo tanto verifican) el stock
-  const excede = unidad === 'bulto' && valida && cantidad > stock.cantidad_bultos_actual;
+  const excede = modo === 'bulto' && valida && cantidad > stock.cantidad_bultos_actual;
 
   const enviar = async () => {
     if (!valida || excede || sinPrecio) return;
     setEnviando(true);
     setError(null);
     try {
-      await onAgregar(cantidad, unidad);
+      await onAgregar(cantidad, unidad, xBulto);
     } catch (err) {
       setError(getErrorMessage(err, 'No se pudo agregar el producto'));
       setEnviando(false);
@@ -175,13 +186,17 @@ function CantidadForm({ fila, onVolver, onAgregar }: CantidadProps) {
       )}
 
       {fraccionable && (
-        <Segmented<UnidadVenta>
+        <Segmented<Modo>
           label="Vender por"
-          value={unidad}
-          onChange={setUnidad}
+          value={modo}
+          onChange={setModo}
           options={[
             { id: 'bulto', label: `Bulto · ${formatMoneda(stock.precio_bulto)}` },
             { id: 'unidad', label: `Unidad · ${stock.precio_unidad ? formatMoneda(stock.precio_unidad) : '—'}` },
+            // P.UxB: precio de unidad al llevar bulto o cantidad grande; solo si el producto lo tiene cargado
+            ...(stock.precio_unidad_x_bulto
+              ? [{ id: 'x_bulto' as const, label: `P.UxB · ${formatMoneda(stock.precio_unidad_x_bulto)}` }]
+              : []),
           ]}
         />
       )}
@@ -194,7 +209,7 @@ function CantidadForm({ fila, onVolver, onAgregar }: CantidadProps) {
         </p>
       )}
       {sinPrecio && <p className="text-sm text-danger-700">Este producto no tiene precio por unidad cargado.</p>}
-      {unidad === 'unidad' && !sinPrecio && (
+      {modo !== 'bulto' && !sinPrecio && (
         <p className="text-xs text-muted">La venta por unidad no descuenta bultos del stock.</p>
       )}
 

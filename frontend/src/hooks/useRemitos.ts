@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { listRemitos, type FiltroRemitos } from '../api/remitos';
 import { getErrorMessage } from '../lib/errors';
-import { inicioDeHoy } from '../lib/fechas';
+import { inicioHace24Horas } from '../lib/fechas';
 import type { RemitoResumen } from '../types/remito';
 
 interface Opciones {
@@ -24,7 +24,7 @@ interface Cargado {
 /** Arma el filtro de la API. La fecha de "hoy" se calcula al pedir (no al renderizar). */
 const construirFiltro = ({ estado, soloHoy, vendedor, q, orden }: Opciones, pagina: number): FiltroRemitos => ({
   estado,
-  desde: soloHoy ? inicioDeHoy() : undefined,
+  desde: soloHoy ? inicioHace24Horas() : undefined,
   vendedor,
   q: q || undefined,
   orden: orden === 'alfabetico' ? orden : undefined, // "recientes" es el comportamiento por defecto del servidor

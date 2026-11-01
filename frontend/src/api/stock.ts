@@ -16,9 +16,9 @@ export async function registrarStock(input: NuevoStockInput) {
 }
 
 /** Ingreso adicional: suma bultos al stock actual (y al inicial). */
-export async function agregarStock(productoId: string, cantidad_bultos: number) {
-  await api.patch(`/stock-diario/${productoId}/agregar`, { cantidad_bultos });
-}
+  export async function agregarStock(productoId: string, cantidad_bultos: number, observaciones?: string) {
+    await api.patch(`/stock-diario/${productoId}/agregar`, { cantidad_bultos, observaciones });
+  }
 
 /** Cambia los precios del stock vigente. Los remitos ya generados conservan su precio. */
 export async function actualizarPrecio(productoId: string, input: PrecioInput) {

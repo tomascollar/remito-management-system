@@ -7,7 +7,7 @@ import { registrarMovimiento } from '../services/movimientosStock';
 // Registrar nuevo stock vigente para un producto (ej: llegó el camión)
 export const registrarStockDiario = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { producto, cantidad_bultos_inicial, precio_bulto, precio_unidad } = req.body;
+    const { producto, cantidad_bultos_inicial, precio_bulto, precio_unidad, precio_unidad_x_bulto } = req.body;
 
     const productoExistente = await Product.findById(producto);
     if (!productoExistente || !productoExistente.activo) {
@@ -33,6 +33,8 @@ export const registrarStockDiario = async (req: Request, res: Response): Promise
       cantidad_bultos_actual: cantidad_bultos_inicial,
       precio_bulto,
       precio_unidad: productoExistente.permite_venta_fraccionada ? precio_unidad : undefined,
+      // P.UxB es opcional y solo tiene sentido en productos que se venden por unidad
+      precio_unidad_x_bulto: productoExistente.permite_venta_fraccionada ? precio_unidad_x_bulto : undefined,
       activo: true
     });
 
@@ -93,7 +95,7 @@ export const getStockVigentePorProducto = async (req: Request, res: Response): P
 export const agregarStock = async (req: Request, res: Response): Promise<void> => {
   try {
     const productoId = req.params.productoId as string;
-    const { cantidad_bultos } = req.body;
+    const { cantidad_bultos, observaciones } = req.body;
     const usuarioId = (req as any).usuario.id;
 
     const stock = await StockDiario.findOne({ producto: productoId, activo: true });
@@ -113,7 +115,8 @@ export const agregarStock = async (req: Request, res: Response): Promise<void> =
       tipo: 'entrada_adicional',
       cantidad_bultos,
       usuario: usuarioId,
-      observaciones: 'Ingreso adicional de mercadería'
+      // Si el usuario escribió un motivo, se guarda ese; si no, el texto por defecto
+      observaciones: observaciones || 'Ingreso adicional de mercadería'
     });
 
     res.json({ message: 'Stock agregado exitosamente', stock });
@@ -127,7 +130,7 @@ export const agregarStock = async (req: Request, res: Response): Promise<void> =
 export const actualizarPrecioDia = async (req: Request, res: Response): Promise<void> => {
   try {
     const { productoId } = req.params;
-    const { precio_bulto, precio_unidad } = req.body;
+    const { precio_bulto, precio_unidad, precio_unidad_x_bulto } = req.body;
 
     const stock = await StockDiario.findOne({ producto: productoId, activo: true });
 
@@ -138,6 +141,7 @@ export const actualizarPrecioDia = async (req: Request, res: Response): Promise<
 
     if (precio_bulto !== undefined) stock.precio_bulto = precio_bulto;
     if (precio_unidad !== undefined) stock.precio_unidad = precio_unidad;
+    if (precio_unidad_x_bulto !== undefined) stock.precio_unidad_x_bulto = precio_unidad_x_bulto;
 
     await stock.save();
 

@@ -7,6 +7,7 @@ export interface IStockDiario extends Document {
   cantidad_bultos_actual: number;
   precio_bulto: number;
   precio_unidad?: number;
+  precio_unidad_x_bulto?: number; // P.UxB: precio por unidad cuando se lleva en cantidad (opcional)
   activo: boolean; // Solo un registro activo por producto a la vez
   createdAt: Date;
   updatedAt: Date;
@@ -40,6 +41,11 @@ const StockDiarioSchema: Schema = new Schema({
     min: 0
   },
   precio_unidad: {
+    type: Number,
+    min: 0
+  },
+  // P.UxB: precio de cada unidad cuando se lleva un bulto o una cantidad grande (suele ser menor)
+  precio_unidad_x_bulto: {
     type: Number,
     min: 0
   },

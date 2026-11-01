@@ -17,6 +17,7 @@ export interface StockVigente {
   cantidad_bultos_actual: number;
   precio_bulto: number;
   precio_unidad?: number;
+  precio_unidad_x_bulto?: number; // P.UxB: precio de cada unidad al llevar un bulto o cantidad grande
   fecha: string;
 }
 
@@ -31,11 +32,13 @@ export interface NuevoStockInput {
   cantidad_bultos_inicial: number;
   precio_bulto: number;
   precio_unidad?: number;
+  precio_unidad_x_bulto?: number;
 }
 
 export interface PrecioInput {
   precio_bulto?: number;
   precio_unidad?: number;
+  precio_unidad_x_bulto?: number;
 }
 
 // ---- Historial de movimientos de stock (auditoría) ----

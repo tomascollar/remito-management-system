@@ -12,6 +12,7 @@ export interface RemitoItem {
   unidad_venta: UnidadVenta;
   bultos_consumidos: number; // 0 en ventas por unidad (no descuentan stock)
   precio_unitario: number;
+  precio_x_bulto?: boolean; // true si se vendió a P.UxB (precio de unidad por bulto)
   subtotal: number;
 }
 
@@ -84,6 +85,7 @@ export interface AgregarItemInput {
   producto: string;
   cantidad: number;
   unidad_venta: UnidadVenta;
+  precio_x_bulto?: boolean; // solo con unidad_venta 'unidad': usa el precio P.UxB
 }
 
 /** Producto activo que ya tiene stock vigente cargado: es lo único que se puede vender. */

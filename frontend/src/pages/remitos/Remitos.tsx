@@ -11,7 +11,7 @@ type Filtro = 'abiertos' | 'hoy' | 'todos';
 
 const filtros: { id: Filtro; label: string }[] = [
   { id: 'abiertos', label: 'Abiertos' },
-  { id: 'hoy', label: 'Hoy' },
+  { id: 'hoy', label: 'Últ. 24 hs' },
   { id: 'todos', label: 'Todos' },
 ];
 

@@ -22,3 +22,6 @@ export const inicioHaceDias = (dias: number) => {
   d.setDate(d.getDate() - dias);
   return d.toISOString();
 };
+
+/** Hace exactamente 24 horas (ISO). Cubre una jornada que cruza la medianoche (ej. de 20:00 a 08:00). */
+export const inicioHace24Horas = () => new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();

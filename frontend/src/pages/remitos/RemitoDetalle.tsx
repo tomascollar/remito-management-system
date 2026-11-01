@@ -125,8 +125,16 @@ function Detalle({ id }: { id: string }) {
     );
 
   /** Agregar un ítem: el error se muestra dentro del modal, que es donde se está trabajando. */
-  const agregar = (producto: Producto, cantidad: number, unidad: UnidadVenta) =>
-    enviar(() => agregarItem(remito._id, { producto: producto._id, cantidad, unidad_venta: unidad }));
+  const agregar = (producto: Producto, cantidad: number, unidad: UnidadVenta, xBulto: boolean) =>
+    enviar(() =>
+      agregarItem(remito._id, {
+        producto: producto._id,
+        cantidad,
+        unidad_venta: unidad,
+        // Solo se envía si es P.UxB (en el resto de los casos el servidor usa el precio común)
+        ...(xBulto && { precio_x_bulto: true }),
+      }),
+    );
 
   /** Ajustes y entregas esperan la respuesta del servidor (hace falta el _id real). El error se muestra en el modal. */
   const cargarAjuste = (concepto: string, monto: number, resaltado: boolean) =>
@@ -228,12 +236,12 @@ function Detalle({ id }: { id: string }) {
                     >
                       <Plus size={16} />
                     </button>
-                    <span>× {formatMoneda(item.precio_unitario)}</span>
+                    <span>× {formatMoneda(item.precio_unitario)}{item.precio_x_bulto ? ' (P.UxB)' : ''}</span>
                   </div>
                 ) : (
                   <p className="text-xs text-muted">
                     {formatCantidad(item.cantidad)} {etiquetaUnidad(item.cantidad, item.unidad_venta)} ×{' '}
-                    {formatMoneda(item.precio_unitario)}
+                    {formatMoneda(item.precio_unitario)}{item.precio_x_bulto ? ' (P.UxB)' : ''}
                   </p>
                 )}
               </li>

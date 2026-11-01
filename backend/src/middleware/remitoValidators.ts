@@ -20,7 +20,12 @@ export const validarAgregarItem = [
     .isFloat({ gt: 0, lt: 100000 }).withMessage('La cantidad debe ser un número mayor a 0 y menor a 100.000'),
 
   body('unidad_venta')
-    .isIn(['bulto', 'unidad']).withMessage('unidad_venta debe ser "bulto" o "unidad"')
+    .isIn(['bulto', 'unidad']).withMessage('unidad_venta debe ser "bulto" o "unidad"'),
+
+  // Solo el booleano real (un texto como "true" se rechaza)
+  body('precio_x_bulto')
+    .optional()
+    .isBoolean({ strict: true }).withMessage('precio_x_bulto debe ser verdadero o falso')
 ];
 
 export const validarQuitarItem = [

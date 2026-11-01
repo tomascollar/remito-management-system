@@ -34,6 +34,7 @@ export const crearRemito = async (req: Request, res: Response): Promise<void> =>
 
 // Agregar un producto a un remito existente.
 // - Venta por bulto: descuenta stock. Venta por unidad: NO toca el stock en bultos.
+// - Venta por unidad con `precio_x_bulto: true`: usa el precio P.UxB (precio de unidad por bulto).
 // - Si el remito ya tiene una línea del mismo producto, misma unidad y mismo precio,
 //   la cantidad se suma a esa línea en vez de crear otra.
 export const agregarItem = async (req: Request, res: Response): Promise<void> => {
@@ -41,6 +42,8 @@ export const agregarItem = async (req: Request, res: Response): Promise<void> =>
     const remitoId = req.params.id as string;
     const { producto, unidad_venta } = req.body; // unidad_venta: 'bulto' | 'unidad'
     const cantidad = Number(req.body.cantidad);
+    // P.UxB: solo aplica a ventas por unidad; en ventas por bulto se ignora
+    const xBulto = unidad_venta === 'unidad' && req.body.precio_x_bulto === true;
 
     const remito = await Remito.findById(remitoId);
     if (!remito) {
@@ -99,6 +102,15 @@ export const agregarItem = async (req: Request, res: Response): Promise<void> =>
       }
       bultos_consumidos = 0;
       precio_unitario = stockVigente.precio_unidad;
+
+      // P.UxB: el vendedor lo eligió a mano (precio por unidad al llevar cantidad)
+      if (xBulto) {
+        if (!stockVigente.precio_unidad_x_bulto) {
+          res.status(400).json({ message: 'Este producto no tiene precio de unidad por bulto (P.UxB) definido' });
+          return;
+        }
+        precio_unitario = stockVigente.precio_unidad_x_bulto;
+      }
     }
 
     // ¿Ya hay una línea igual? Mismo producto + misma unidad + MISMO PRECIO. El precio importa:
@@ -107,7 +119,8 @@ export const agregarItem = async (req: Request, res: Response): Promise<void> =>
       (it) =>
         it.producto.toString() === productoDoc._id.toString() &&
         it.unidad_venta === unidad_venta &&
-        it.precio_unitario === precio_unitario
+        it.precio_unitario === precio_unitario &&
+        Boolean(it.precio_x_bulto) === xBulto
     );
 
     if (existente) {
@@ -122,6 +135,7 @@ export const agregarItem = async (req: Request, res: Response): Promise<void> =>
         unidad_venta,
         bultos_consumidos,
         precio_unitario,
+        precio_x_bulto: xBulto,
         subtotal: cantidad * precio_unitario
       } as any);
     }

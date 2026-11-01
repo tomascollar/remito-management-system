@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Segmented } from '../../components/ui/Segmented';
 import { formatCantidad, formatMoneda } from '../../lib/format';
-import { AgregarForm, AjusteForm, NuevoStockForm, PrecioForm } from './StockForms';
+import { AjusteForm, NuevoStockForm, PrecioForm } from './StockForms';
 import type { FilaStock } from '../../types/stock';
 
-export type Accion = 'nuevo' | 'agregar' | 'precio' | 'ajuste';
+export type Accion = 'nuevo' | 'precio' | 'ajuste';
 
 interface Props {
   fila: FilaStock;
@@ -33,6 +33,7 @@ export function GestionStock({ fila, accionInicial, onDone }: Props) {
             <p className="text-muted">
               Bulto {formatMoneda(stock.precio_bulto)}
               {stock.precio_unidad ? ` · Unidad ${formatMoneda(stock.precio_unidad)}` : ''}
+              {stock.precio_unidad_x_bulto ? ` · P.UxB ${formatMoneda(stock.precio_unidad_x_bulto)}` : ''}
             </p>
           </>
         ) : (
@@ -46,7 +47,6 @@ export function GestionStock({ fila, accionInicial, onDone }: Props) {
           value={accion}
           onChange={setAccion}
           options={[
-            { id: 'agregar', label: 'Agregar' },
             { id: 'ajuste', label: 'Ajustar' },
             { id: 'precio', label: 'Precio' },
             { id: 'nuevo', label: 'Nuevo' },
@@ -55,7 +55,6 @@ export function GestionStock({ fila, accionInicial, onDone }: Props) {
       )}
 
       {accion === 'nuevo' && <NuevoStockForm producto={producto} stock={stock} onDone={onDone} />}
-      {accion === 'agregar' && stock && <AgregarForm producto={producto} stock={stock} onDone={onDone} />}
       {accion === 'precio' && stock && <PrecioForm producto={producto} stock={stock} onDone={onDone} />}
       {accion === 'ajuste' && stock && <AjusteForm producto={producto} stock={stock} onDone={onDone} />}
     </div>

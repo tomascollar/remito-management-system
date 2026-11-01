@@ -9,12 +9,10 @@ import { actualizarPrecio, agregarStock, ajustarStock, registrarStock } from '..
 import { getErrorMessage } from '../../lib/errors';
 import { formatCantidad } from '../../lib/format';
 import {
-  agregarSchema,
   ajusteSchema,
   aNumero,
   crearNuevoStockSchema,
   crearPrecioSchema,
-  type AgregarValues,
   type AjusteValues,
   type NuevoStockValues,
   type PrecioValues,
@@ -78,6 +76,7 @@ export function NuevoStockForm({ producto, stock, onDone }: FormProps) {
       cantidad: '',
       precio_bulto: stock ? String(stock.precio_bulto) : '',
       precio_unidad: stock?.precio_unidad ? String(stock.precio_unidad) : '',
+      precio_unidad_x_bulto: stock?.precio_unidad_x_bulto ? String(stock.precio_unidad_x_bulto) : '',
     },
   });
 
@@ -90,6 +89,8 @@ export function NuevoStockForm({ producto, stock, onDone }: FormProps) {
           precio_bulto: aNumero(v.precio_bulto),
           // El backend exige precio_unidad solo en productos fraccionables
           ...(fraccionable && { precio_unidad: aNumero(v.precio_unidad) }),
+          // P.UxB es opcional: solo se envía si se completó
+          ...(fraccionable && v.precio_unidad_x_bulto !== '' && { precio_unidad_x_bulto: aNumero(v.precio_unidad_x_bulto) }),
         }),
       'No se pudo registrar el stock',
     );
@@ -129,6 +130,16 @@ export function NuevoStockForm({ producto, stock, onDone }: FormProps) {
           {...register('precio_unidad')}
         />
       )}
+      {fraccionable && (
+        <Input
+          label="Precio unidad por bulto (P.UxB) · opcional"
+          inputMode="decimal"
+          placeholder="Ej: 600"
+          hint="Precio de cada unidad al llevar un bulto o una cantidad grande."
+          error={errors.precio_unidad_x_bulto?.message}
+          {...register('precio_unidad_x_bulto')}
+        />
+      )}
 
       <Button type="submit" large loading={isSubmitting} className="w-full">
         {stock ? 'Reemplazar stock' : 'Cargar stock'}
@@ -137,39 +148,6 @@ export function NuevoStockForm({ producto, stock, onDone }: FormProps) {
   );
 }
 
-/** AGREGAR: ingreso adicional de mercadería. Suma al stock actual, no lo reemplaza. */
-export function AgregarForm({ producto, onDone }: FormProps) {
-  const { error, ejecutar } = useAccion(onDone);
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<AgregarValues>({
-    resolver: zodResolver(agregarSchema),
-    defaultValues: { cantidad: '' },
-  });
-
-  const onSubmit = (v: AgregarValues) =>
-    ejecutar(() => agregarStock(producto._id, aNumero(v.cantidad)), 'No se pudo agregar el stock');
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
-      <ErrorBanner mensaje={error} />
-      <Input
-        label="Bultos a sumar"
-        inputMode="decimal"
-        placeholder="Ej: 3"
-        hint="Ingreso adicional: se suma al stock actual."
-        error={errors.cantidad?.message}
-        {...register('cantidad')}
-      />
-      <Button type="submit" large loading={isSubmitting} className="w-full">
-        Agregar al stock
-      </Button>
-    </form>
-  );
-}
 
 /** PRECIO: cambia los precios vigentes. Los remitos ya generados conservan el suyo. */
 export function PrecioForm({ producto, stock, onDone }: FormProps) {
@@ -186,6 +164,7 @@ export function PrecioForm({ producto, stock, onDone }: FormProps) {
     defaultValues: {
       precio_bulto: stock ? String(stock.precio_bulto) : '',
       precio_unidad: stock?.precio_unidad ? String(stock.precio_unidad) : '',
+      precio_unidad_x_bulto: stock?.precio_unidad_x_bulto ? String(stock.precio_unidad_x_bulto) : '',
     },
   });
 
@@ -195,6 +174,7 @@ export function PrecioForm({ producto, stock, onDone }: FormProps) {
         actualizarPrecio(producto._id, {
           precio_bulto: aNumero(v.precio_bulto),
           ...(fraccionable && { precio_unidad: aNumero(v.precio_unidad) }),
+          ...(fraccionable && v.precio_unidad_x_bulto !== '' && { precio_unidad_x_bulto: aNumero(v.precio_unidad_x_bulto) }),
         }),
       'No se pudo actualizar el precio',
     );
@@ -214,6 +194,15 @@ export function PrecioForm({ producto, stock, onDone }: FormProps) {
           inputMode="decimal"
           error={errors.precio_unidad?.message}
           {...register('precio_unidad')}
+        />
+      )}
+      {fraccionable && (
+        <Input
+          label="Precio unidad por bulto (P.UxB) · opcional"
+          inputMode="decimal"
+          hint="Precio de cada unidad al llevar un bulto o una cantidad grande."
+          error={errors.precio_unidad_x_bulto?.message}
+          {...register('precio_unidad_x_bulto')}
         />
       )}
       <p className="text-xs text-muted">Los remitos ya generados mantienen el precio con el que se crearon.</p>
@@ -248,14 +237,13 @@ export function AjusteForm({ producto, stock, onDone }: FormProps & { stock: Sto
   const resultado =
     Number.isFinite(n) && n > 0 ? stock.cantidad_bultos_actual + (tipo === 'restar' ? -n : n) : null;
 
-  const onSubmit = (v: AjusteValues) =>
+   const onSubmit = (v: AjusteValues) =>
     ejecutar(() => {
       const cantidad = aNumero(v.cantidad);
-      return ajustarStock(
-        producto._id,
-        v.tipo === 'restar' ? -cantidad : cantidad, // el backend espera el valor con signo
-        v.observaciones || undefined,
-      );
+      // Sumar = ingreso de mercadería: usa "agregar" (suma al stock actual y al inicial,
+      // y queda como "entrada adicional" en el historial). Restar es un ajuste manual.
+      if (v.tipo === 'sumar') return agregarStock(producto._id, cantidad, v.observaciones || undefined);
+      return ajustarStock(producto._id, -cantidad, v.observaciones || undefined);
     }, 'No se pudo ajustar el stock');
 
   return (

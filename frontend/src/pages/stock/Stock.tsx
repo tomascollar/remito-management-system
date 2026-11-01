@@ -155,7 +155,7 @@ export default function Stock() {
                     <Button
                       variant="soft"
                       className="shrink-0 px-3.5 py-2"
-                      onClick={() => setModal({ fila, accion: s ? 'agregar' : 'nuevo' })}
+                      onClick={() => setModal({ fila, accion: s ? 'ajuste' : 'nuevo' })}
                     >
                       {s ? <Settings2 size={16} /> : null}
                       {s ? 'Gestionar' : 'Cargar stock'}
@@ -182,6 +182,7 @@ export default function Stock() {
                     <p className="text-xs text-muted">
                       Bulto {formatMoneda(s.precio_bulto)}
                       {s.precio_unidad ? ` · Unidad ${formatMoneda(s.precio_unidad)}` : ''}
+                      {s.precio_unidad_x_bulto ? ` · P.UxB ${formatMoneda(s.precio_unidad_x_bulto)}` : ''}
                     </p>
                   </div>
                 ) : (
