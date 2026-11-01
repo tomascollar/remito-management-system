@@ -10,6 +10,13 @@ const positivo = (mensaje: string) =>
     .trim()
     .refine((v) => v !== '' && Number.isFinite(aNumero(v)) && aNumero(v) > 0, mensaje);
 
+/** Campo opcional: vacío, o un número mayor a 0. */
+const opcionalPositivo = (mensaje: string) =>
+  z
+    .string()
+    .trim()
+    .refine((v) => v === '' || (Number.isFinite(aNumero(v)) && aNumero(v) > 0), mensaje);
+
 export const agregarSchema = z.object({
   cantidad: positivo('Ingresá un número mayor a 0'),
 });
@@ -26,12 +33,14 @@ export const crearNuevoStockSchema = (fraccionable: boolean) =>
     cantidad: positivo('Ingresá la cantidad de bultos'),
     precio_bulto: positivo('Ingresá el precio por bulto'),
     precio_unidad: fraccionable ? positivo('Ingresá el precio por unidad') : z.string().trim(),
+    precio_unidad_x_bulto: opcionalPositivo('Ingresá un número mayor a 0, o dejalo vacío'),
   });
 
 export const crearPrecioSchema = (fraccionable: boolean) =>
   z.object({
     precio_bulto: positivo('Ingresá el precio por bulto'),
     precio_unidad: fraccionable ? positivo('Ingresá el precio por unidad') : z.string().trim(),
+    precio_unidad_x_bulto: opcionalPositivo('Ingresá un número mayor a 0, o dejalo vacío'),
   });
 
 export type AgregarValues = z.infer<typeof agregarSchema>;

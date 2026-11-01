@@ -8,6 +8,7 @@ interface IRemitoItem {
   unidad_venta: string; // "bulto" o "unidad"
   bultos_consumidos: number; // Cuántos bultos se descontaron del stock (puede ser decimal)
   precio_unitario: number; // Precio al momento de la venta
+  precio_x_bulto?: boolean; // true si se vendió a P.UxB (precio de unidad por bulto)
   subtotal: number;
 }
 
@@ -91,6 +92,11 @@ const RemitoSchema: Schema = new Schema({
       type: Number,
       required: true,
       min: 0
+    },
+    // Marca de qué precio de unidad se usó (común o P.UxB). El precio ya queda congelado en precio_unitario.
+    precio_x_bulto: {
+      type: Boolean,
+      default: false
     },
     subtotal: {
       type: Number,

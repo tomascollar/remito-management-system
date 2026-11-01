@@ -12,7 +12,11 @@ export const validarRegistrarStock = [
 
   body('precio_unidad')
     .optional()
-    .isFloat({ gt: 0 }).withMessage('El precio por unidad debe ser un número mayor a 0')
+    .isFloat({ gt: 0 }).withMessage('El precio por unidad debe ser un número mayor a 0'),
+
+  body('precio_unidad_x_bulto')
+    .optional()
+    .isFloat({ gt: 0 }).withMessage('El precio de unidad por bulto debe ser un número mayor a 0')
 ];
 
 export const validarProductoIdParam = [
@@ -22,7 +26,11 @@ export const validarProductoIdParam = [
 export const validarAgregarStock = [
   param('productoId').isMongoId().withMessage('ID de producto inválido'),
   body('cantidad_bultos')
-    .isFloat({ gt: 0 }).withMessage('La cantidad a agregar debe ser un número mayor a 0')
+    .isFloat({ gt: 0 }).withMessage('La cantidad a agregar debe ser un número mayor a 0'),
+  body('observaciones')
+    .optional()
+    .trim()
+    .isLength({ max: 200 }).withMessage('Las observaciones no pueden superar 200 caracteres')
 ];
 
 export const validarActualizarPrecio = [
@@ -32,7 +40,10 @@ export const validarActualizarPrecio = [
     .isFloat({ gt: 0 }).withMessage('El precio por bulto debe ser un número mayor a 0'),
   body('precio_unidad')
     .optional()
-    .isFloat({ gt: 0 }).withMessage('El precio por unidad debe ser un número mayor a 0')
+    .isFloat({ gt: 0 }).withMessage('El precio por unidad debe ser un número mayor a 0'),
+  body('precio_unidad_x_bulto')
+    .optional()
+    .isFloat({ gt: 0 }).withMessage('El precio de unidad por bulto debe ser un número mayor a 0')
 ];
 
 export const validarAjusteStock = [
