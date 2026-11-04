@@ -1,9 +1,9 @@
-# Pruebas automáticas: se ejecutan en cada push a dev/main y en cada pull request hacia main.
+# Pruebas automáticas: se ejecutan en cada pull request hacia main y en cada push a main.
 # Si algo falla, el commit aparece con una cruz roja en GitHub, ANTES de que llegue a producción.
 name: Tests
 on:
   push:
-    branches: [dev, main]
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -21,8 +21,8 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
-      - run: npx tsc --noEmit   # el código compila sin errores de tipos
-      - run: npm test           # Jest + Supertest
+      - run: npx tsc --noEmit # el código compila sin errores de tipos
+      - run: npm test # Jest + Supertest
 
   frontend:
     runs-on: ubuntu-latest
@@ -39,7 +39,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npx vitest run
-      - run: npm run build      # compila tipos y genera el frontend de producción
+      - run: npm run build # compila tipos y genera el frontend de producción
 
   agente:
     runs-on: ubuntu-latest
@@ -55,4 +55,4 @@ jobs:
           cache-dependency-path: agente-impresion/package-lock.json
       - run: npm ci
       - run: npx tsc --noEmit
-      - run: npm test           # incluye pruebas con un servidor HTTP y una "impresora" TCP simulados
+      - run: npm test # incluye pruebas con un servidor HTTP y una "impresora" TCP simulados
