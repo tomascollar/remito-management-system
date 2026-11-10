@@ -4,6 +4,7 @@ import Product from '../models/Product';
 import StockDiario from '../models/StockDiario';
 import { registrarMovimiento } from '../services/movimientosStock';
 import { calcularTotal } from '../services/cobranzas';
+import { bultosDeLinea, bultosDeUnidades, bultosParaMensaje, redondearBultos } from '../services/bultos';
 
 // Crear un nuevo remito (arranca vacío, solo con el nombre del cliente)
 export const crearRemito = async (req: Request, res: Response): Promise<void> => {
@@ -33,10 +34,11 @@ export const crearRemito = async (req: Request, res: Response): Promise<void> =>
 };
 
 // Agregar un producto a un remito existente.
-// - Venta por bulto: descuenta stock. Venta por unidad: NO toca el stock en bultos.
+// - Toda venta descuenta stock en bultos. Por bulto: 1 a 1. Por unidad: cantidad ÷ unidades por
+//   bulto del producto (11 remolachas con 10 por bulto = 1,1 bultos), con precio común o P.UxB.
 // - Venta por unidad con `precio_x_bulto: true`: usa el precio P.UxB (precio de unidad por bulto).
-// - Si el remito ya tiene una línea del mismo producto, misma unidad y mismo precio,
-//   la cantidad se suma a esa línea en vez de crear otra.
+// - Si el remito ya tiene una línea del mismo producto, misma unidad, mismo precio y mismo
+//   contenido por bulto, la cantidad se suma a esa línea en vez de crear otra.
 export const agregarItem = async (req: Request, res: Response): Promise<void> => {
   try {
     const remitoId = req.params.id as string;
@@ -76,31 +78,19 @@ export const agregarItem = async (req: Request, res: Response): Promise<void> =>
 
     let bultos_consumidos: number;
     let precio_unitario: number;
+    // Solo ventas por unidad: cuántas unidades trae cada bulto (se guarda en la línea)
+    let contenido_por_bulto: number | undefined;
 
     if (unidad_venta === 'bulto') {
-      // Venta por bulto: es la ÚNICA que mueve el stock (se descuentan bultos enteros)
-      bultos_consumidos = cantidad;
+      bultos_consumidos = redondearBultos(cantidad);
       precio_unitario = stockVigente.precio_bulto;
-
-      if (stockVigente.cantidad_bultos_actual < bultos_consumidos) {
-        res.status(400).json({
-          message: `Stock insuficiente. Disponible: ${stockVigente.cantidad_bultos_actual} bultos, se necesitan: ${bultos_consumidos}`
-        });
-        return;
-      }
-
-      stockVigente.cantidad_bultos_actual -= bultos_consumidos;
-      await stockVigente.save();
     } else {
-      // Venta por unidad (solo productos fraccionables): se registra la cantidad y el
-      // precio por unidad tal cual. No se convierte a bultos, porque el contenido de
-      // cada bulto varía (un cajón trae 14, 15 o 16). El stock en bultos no se toca y
-      // se corrige al actualizar el stock del día.
+      // Venta por unidad (solo productos fraccionables): se cobra el precio por unidad y se
+      // descuenta del stock la fracción de bulto equivalente (cantidad ÷ unidades por bulto).
       if (!stockVigente.precio_unidad) {
         res.status(400).json({ message: 'No hay precio por unidad definido para este producto' });
         return;
       }
-      bultos_consumidos = 0;
       precio_unitario = stockVigente.precio_unidad;
 
       // P.UxB: el vendedor lo eligió a mano (precio por unidad al llevar cantidad)
@@ -111,21 +101,45 @@ export const agregarItem = async (req: Request, res: Response): Promise<void> =>
         }
         precio_unitario = stockVigente.precio_unidad_x_bulto;
       }
+
+      // Sin el contenido por bulto no se puede calcular cuánto stock descontar
+      if (!productoDoc.cantidad_por_bulto) {
+        res.status(400).json({
+          message: 'Este producto no tiene cargadas las unidades por bulto. Editá el producto para poder venderlo por unidad'
+        });
+        return;
+      }
+      contenido_por_bulto = productoDoc.cantidad_por_bulto;
+      bultos_consumidos = bultosDeUnidades(cantidad, contenido_por_bulto);
     }
 
-    // ¿Ya hay una línea igual? Mismo producto + misma unidad + MISMO PRECIO. El precio importa:
-    // si cambió durante el día, lo ya vendido conserva el precio viejo y lo nuevo va en otra línea.
+    // Control de stock (por bulto o por unidad): no se vende más de lo que hay
+    if (stockVigente.cantidad_bultos_actual < bultos_consumidos) {
+      res.status(400).json({
+        message: `Stock insuficiente. Disponible: ${stockVigente.cantidad_bultos_actual} bultos, se necesitan: ${bultosParaMensaje(bultos_consumidos)}`
+      });
+      return;
+    }
+
+    stockVigente.cantidad_bultos_actual = redondearBultos(stockVigente.cantidad_bultos_actual - bultos_consumidos);
+    await stockVigente.save();
+
+    // ¿Ya hay una línea igual? Mismo producto + misma unidad + MISMO PRECIO + mismo contenido por
+    // bulto. El precio importa: si cambió durante el día, lo ya vendido conserva el precio viejo y
+    // lo nuevo va en otra línea. El contenido importa para que devolver stock use la misma cuenta
+    // (y para no mezclar con líneas por unidad anteriores a este control, que no descontaron stock).
     const existente = (remito.items as any[]).find(
       (it) =>
         it.producto.toString() === productoDoc._id.toString() &&
         it.unidad_venta === unidad_venta &&
         it.precio_unitario === precio_unitario &&
-        Boolean(it.precio_x_bulto) === xBulto
+        Boolean(it.precio_x_bulto) === xBulto &&
+        (it.contenido_por_bulto ?? 0) === (contenido_por_bulto ?? 0)
     );
 
     if (existente) {
       existente.cantidad += cantidad;
-      existente.bultos_consumidos += bultos_consumidos;
+      existente.bultos_consumidos = redondearBultos(existente.bultos_consumidos + bultos_consumidos);
       existente.subtotal = existente.cantidad * existente.precio_unitario;
     } else {
       remito.items.push({
@@ -136,6 +150,7 @@ export const agregarItem = async (req: Request, res: Response): Promise<void> =>
         bultos_consumidos,
         precio_unitario,
         precio_x_bulto: xBulto,
+        ...(contenido_por_bulto && { contenido_por_bulto }),
         subtotal: cantidad * precio_unitario
       } as any);
     }
@@ -145,7 +160,7 @@ export const agregarItem = async (req: Request, res: Response): Promise<void> =>
 
     await remito.save();
 
-    // Historial: solo las ventas por bulto mueven stock
+    // Historial: toda venta mueve stock (en las ventas por unidad se aclara cuántas unidades fueron)
     if (bultos_consumidos > 0) {
       await registrarMovimiento({
         producto: productoDoc._id,
@@ -153,7 +168,9 @@ export const agregarItem = async (req: Request, res: Response): Promise<void> =>
         cantidad_bultos: -bultos_consumidos,
         usuario: (req as any).usuario.id,
         remito: remito._id,
-        observaciones: `Remito #${remito.numero_remito} - ${remito.nombre_cliente}`
+        observaciones:
+          `Remito #${remito.numero_remito} - ${remito.nombre_cliente}` +
+          (unidad_venta === 'unidad' ? ` (${cantidad} u.)` : '')
       });
     }
 
@@ -168,7 +185,9 @@ export const agregarItem = async (req: Request, res: Response): Promise<void> =>
 };
 
 // Cambiar la cantidad de un ítem ya cargado. Mantiene el precio con el que se vendió.
-// En ítems por bulto ajusta el stock por la diferencia; en ítems por unidad no lo toca.
+// Ajusta el stock por la diferencia de bultos (por bulto o por unidad). Las líneas por unidad
+// vendidas antes de que la venta por unidad descontara stock no tienen contenido guardado y
+// siguen sin mover stock.
 export const modificarCantidadItem = async (req: Request, res: Response): Promise<void> => {
   try {
     const remitoId = req.params.id as string;
@@ -192,12 +211,16 @@ export const modificarCantidadItem = async (req: Request, res: Response): Promis
       return;
     }
 
-    // Cantidad previa en bultos (null si la línea es por unidad y no mueve stock)
-    const cantidadAnterior: number | null = item.unidad_venta === 'bulto' ? item.cantidad : null;
+    const cantidadAnterior: number = item.cantidad;
 
-    if (item.unidad_venta === 'bulto') {
-      // diferencia > 0: se llevan más bultos (hay que verificar stock); < 0: se devuelven
-      const diferencia = cantidad - item.cantidad;
+    // Bultos que tiene que tener descontados la línea con la nueva cantidad (por bulto 1 a 1; por
+    // unidad, cantidad ÷ contenido guardado en la línea). Se compara contra lo que realmente se
+    // descontó: diferencia > 0 = se llevan más (hay que verificar stock); < 0 = se devuelven.
+    const bultosNuevos = bultosDeLinea(item.unidad_venta, cantidad, item.contenido_por_bulto);
+    const diferencia = redondearBultos(bultosNuevos - item.bultos_consumidos);
+    let movido = 0; // bultos que realmente se movieron en el stock (para el historial)
+
+    if (diferencia !== 0) {
       const stockVigente = await StockDiario.findOne({ producto: item.producto, activo: true });
 
       if (diferencia > 0) {
@@ -207,17 +230,18 @@ export const modificarCantidadItem = async (req: Request, res: Response): Promis
         }
         if (stockVigente.cantidad_bultos_actual < diferencia) {
           res.status(400).json({
-            message: `Stock insuficiente. Disponible: ${stockVigente.cantidad_bultos_actual} bultos, se necesitan: ${diferencia} más`
+            message: `Stock insuficiente. Disponible: ${stockVigente.cantidad_bultos_actual} bultos, se necesitan: ${bultosParaMensaje(diferencia)} más`
           });
           return;
         }
       }
 
-      if (stockVigente && diferencia !== 0) {
-        stockVigente.cantidad_bultos_actual -= diferencia;
+      if (stockVigente) {
+        stockVigente.cantidad_bultos_actual = redondearBultos(stockVigente.cantidad_bultos_actual - diferencia);
         await stockVigente.save();
+        movido = diferencia;
       }
-      item.bultos_consumidos = cantidad;
+      item.bultos_consumidos = bultosNuevos;
     }
 
     item.cantidad = cantidad;
@@ -227,15 +251,16 @@ export const modificarCantidadItem = async (req: Request, res: Response): Promis
     await remito.save();
 
     // Historial: la diferencia de bultos es una venta (si aumentó) o una devolución (si bajó)
-    if (cantidadAnterior !== null && cantidad !== cantidadAnterior) {
-      const diferencia = cantidad - cantidadAnterior;
+    if (movido !== 0) {
       await registrarMovimiento({
         producto: item.producto,
-        tipo: diferencia > 0 ? 'venta' : 'devolucion',
-        cantidad_bultos: -diferencia,
+        tipo: movido > 0 ? 'venta' : 'devolucion',
+        cantidad_bultos: -movido,
         usuario: (req as any).usuario.id,
         remito: remito._id,
-        observaciones: `Remito #${remito.numero_remito} - cantidad modificada de ${cantidadAnterior} a ${cantidad}`
+        observaciones:
+          `Remito #${remito.numero_remito} - cantidad modificada de ${cantidadAnterior} a ${cantidad}` +
+          (item.unidad_venta === 'unidad' ? ' u.' : '')
       });
     }
 
@@ -269,10 +294,10 @@ export const quitarItem = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    // Devolver stock
+    // Devolver stock: exactamente los bultos que se descontaron al vender (por bulto o por unidad)
     const stockVigente = await StockDiario.findOne({ producto: item.producto, activo: true });
     if (stockVigente) {
-      stockVigente.cantidad_bultos_actual += item.bultos_consumidos;
+      stockVigente.cantidad_bultos_actual = redondearBultos(stockVigente.cantidad_bultos_actual + item.bultos_consumidos);
       await stockVigente.save();
     }
 

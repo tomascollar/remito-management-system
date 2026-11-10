@@ -9,6 +9,7 @@ interface IRemitoItem {
   bultos_consumidos: number; // Cuántos bultos se descontaron del stock (puede ser decimal)
   precio_unitario: number; // Precio al momento de la venta
   precio_x_bulto?: boolean; // true si se vendió a P.UxB (precio de unidad por bulto)
+  contenido_por_bulto?: number; // Solo ventas por unidad: unidades por bulto del producto al momento de la venta
   subtotal: number;
 }
 
@@ -97,6 +98,13 @@ const RemitoSchema: Schema = new Schema({
     precio_x_bulto: {
       type: Boolean,
       default: false
+    },
+    // Ventas por unidad: unidades por bulto del producto al vender. Se guarda en la línea para que
+    // cambiar la cantidad (o quitarla) devuelva al stock exactamente lo que se descontó, aunque
+    // después se edite el producto. En ventas por bulto no se usa.
+    contenido_por_bulto: {
+      type: Number,
+      min: 1
     },
     subtotal: {
       type: Number,

@@ -84,8 +84,8 @@ export function AgregarProducto({ filas, onAgregar }: Props) {
         <ul className="space-y-2">
           {visibles.map((fila) => {
             const { producto, stock } = fila;
-            // Sin stock en bultos solo se puede vender por unidad (si el producto lo permite)
-            const bloqueado = !producto.permite_venta_fraccionada && stock.cantidad_bultos_actual <= 0;
+            // Sin stock no se puede vender nada: ni bultos ni unidades (las unidades también descuentan)
+            const bloqueado = stock.cantidad_bultos_actual <= 0;
             return (
               <li key={producto._id}>
                 <button
@@ -130,8 +130,8 @@ type Modo = 'bulto' | 'unidad' | 'x_bulto';
 /**
  * Elegir bulto o unidad (si el producto es fraccionable) y la cantidad, con botones
  * grandes de +/- pensados para el celular. Si el producto ya está en el remito con el mismo
- * precio, el backend suma esta cantidad a esa línea. Muestra el subtotal en vivo y avisa si se
- * pide más bultos de los que hay.
+ * precio, el backend suma esta cantidad a esa línea. Muestra el subtotal en vivo, cuántos bultos
+ * descuenta la venta (por unidad: cantidad ÷ unidades por bulto) y avisa si se pide más de lo que hay.
  */
 function CantidadForm({ fila, onVolver, onAgregar }: CantidadProps) {
   const { producto, stock } = fila;
@@ -150,11 +150,14 @@ function CantidadForm({ fila, onVolver, onAgregar }: CantidadProps) {
   const precio =
     modo === 'bulto' ? stock.precio_bulto : modo === 'x_bulto' ? (stock.precio_unidad_x_bulto ?? 0) : (stock.precio_unidad ?? 0);
   const sinPrecio = modo === 'unidad' && !stock.precio_unidad;
-  // Solo las ventas por bulto descuentan (y por lo tanto verifican) el stock
-  const excede = modo === 'bulto' && valida && cantidad > stock.cantidad_bultos_actual;
+  // Toda venta descuenta stock: por bulto 1 a 1; por unidad, cantidad ÷ unidades por bulto
+  const contenido = producto.cantidad_por_bulto;
+  const sinContenido = modo !== 'bulto' && !contenido;
+  const bultosNecesarios = modo === 'bulto' ? cantidad : contenido ? cantidad / contenido : 0;
+  const excede = valida && !sinContenido && bultosNecesarios > stock.cantidad_bultos_actual + 1e-9;
 
   const enviar = async () => {
-    if (!valida || excede || sinPrecio) return;
+    if (!valida || excede || sinPrecio || sinContenido) return;
     setEnviando(true);
     setError(null);
     try {
@@ -205,12 +208,18 @@ function CantidadForm({ fila, onVolver, onAgregar }: CantidadProps) {
 
       {excede && (
         <p className="text-sm text-danger-700">
-          Solo hay {formatCantidad(stock.cantidad_bultos_actual)} bultos disponibles.
+          Solo hay {formatCantidad(stock.cantidad_bultos_actual)} bultos disponibles
+          {modo !== 'bulto' && contenido ? ` (alcanzan para ${formatCantidad(Math.floor(stock.cantidad_bultos_actual * contenido))} unidades)` : ''}.
         </p>
       )}
       {sinPrecio && <p className="text-sm text-danger-700">Este producto no tiene precio por unidad cargado.</p>}
-      {modo !== 'bulto' && !sinPrecio && (
-        <p className="text-xs text-muted">La venta por unidad no descuenta bultos del stock.</p>
+      {sinContenido && (
+        <p className="text-sm text-danger-700">
+          Este producto no tiene cargadas las unidades por bulto. Editalo en Productos para venderlo por unidad.
+        </p>
+      )}
+      {modo !== 'bulto' && !sinPrecio && !sinContenido && valida && (
+        <p className="text-xs text-muted">Descuenta {formatCantidad(bultosNecesarios)} bultos del stock.</p>
       )}
 
       <div className="flex items-baseline justify-between rounded-2xl bg-canvas p-4">
@@ -218,7 +227,7 @@ function CantidadForm({ fila, onVolver, onAgregar }: CantidadProps) {
         <span className="text-xl font-bold">{valida ? formatMoneda(cantidad * precio) : '—'}</span>
       </div>
 
-      <Button large className="w-full" loading={enviando} disabled={!valida || excede || sinPrecio} onClick={enviar}>
+      <Button large className="w-full" loading={enviando} disabled={!valida || excede || sinPrecio || sinContenido} onClick={enviar}>
         Agregar al remito
       </Button>
     </div>

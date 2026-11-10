@@ -24,10 +24,11 @@ export const validarCrearProducto = [
     .isBoolean().withMessage('permite_venta_fraccionada debe ser true o false'),
 
 
-  // Si viene igual (aunque no sea obligatoria), que sea válida
+  // Obligatoria si el producto permite venta fraccionada (lo controla el controller); si viene,
+  // tiene que ser válida. El mínimo es 1 porque el modelo no admite menos.
   body('cantidad_por_bulto')
     .optional({ checkFalsy: true })
-    .isFloat({ gt: 0 }).withMessage('La cantidad por bulto debe ser un número mayor a 0')
+    .isFloat({ min: 1 }).withMessage('La cantidad por bulto debe ser un número mayor o igual a 1')
 ];
 
 export const validarActualizarProducto = [
@@ -53,7 +54,7 @@ export const validarActualizarProducto = [
 
   body('cantidad_por_bulto')
     .optional({ checkFalsy: true })
-    .isFloat({ gt: 0 }).withMessage('La cantidad por bulto debe ser un número mayor a 0')
+    .isFloat({ min: 1 }).withMessage('La cantidad por bulto debe ser un número mayor o igual a 1')
 ];
 
 export const validarIdProducto = [

@@ -45,7 +45,7 @@ export async function crearRemito(nombre_cliente: string) {
   return data.remito;
 }
 
-/** Agrega un ítem. Si es por bulto descuenta stock; por unidad no lo toca. Devuelve el remito actualizado. */
+/** Agrega un ítem. Descuenta stock: por bulto 1 a 1; por unidad, cantidad ÷ unidades por bulto. Devuelve el remito actualizado. */
 export async function agregarItem(remitoId: string, input: AgregarItemInput) {
   const { data } = await api.post<{ remito: Remito }>(`/remitos/${remitoId}/items`, input);
   return data.remito;

@@ -1,6 +1,11 @@
 import { Request, Response } from 'express';
 import Product from '../models/Product';
 
+// Un producto que se vende por unidad necesita saber cuántas unidades trae cada bulto: con ese
+// dato se calcula cuánto stock se descuenta (11 unidades con 10 por bulto = 1,1 bultos).
+const MENSAJE_CONTENIDO_OBLIGATORIO =
+  'Indicá cuántas unidades trae cada bulto: es obligatorio si el producto permite venta fraccionada';
+
 // Obtener todos los productos
 export const getAllProducts = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -45,6 +50,10 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    if (permite_venta_fraccionada && !cantidad_por_bulto) {
+      res.status(400).json({ message: MENSAJE_CONTENIDO_OBLIGATORIO });
+      return;
+    }
 
     const nuevoProducto = new Product({
       nombre: nombre.trim(),
@@ -78,6 +87,15 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    // Cómo quedaría el producto: si va a ser fraccionable tiene que quedar con contenido por bulto.
+    // (También cubre productos viejos fraccionables sin ese dato: al editarlos hay que cargarlo.)
+    const fraccionableFinal = permite_venta_fraccionada ?? producto.permite_venta_fraccionada;
+    const contenidoFinal = cantidad_por_bulto === null ? undefined : cantidad_por_bulto ?? producto.cantidad_por_bulto;
+    if (fraccionableFinal && !contenidoFinal) {
+      res.status(400).json({ message: MENSAJE_CONTENIDO_OBLIGATORIO });
+      return;
+    }
+
     if (nombre && nombre.trim() !== producto.nombre) {
       const nombreEnUso = await Product.findOne({
         nombre: nombre.trim(),
@@ -96,8 +114,8 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
     if (cantidad_por_bulto === null) {
       producto.cantidad_por_bulto = undefined;
     } else if (cantidad_por_bulto !== undefined) {
-      if (cantidad_por_bulto <= 0) {
-        res.status(400).json({ message: 'La cantidad por bulto debe ser mayor a 0' });
+      if (cantidad_por_bulto < 1) {
+        res.status(400).json({ message: 'La cantidad por bulto debe ser mayor o igual a 1' });
         return;
       }
       producto.cantidad_por_bulto = cantidad_por_bulto;
