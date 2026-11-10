@@ -14,8 +14,9 @@ interface Props {
 }
 
 /**
- * Contenido del modal "Cambiar cantidad" de un ítem. En ítems por bulto limita la cantidad
- * a lo que ya tiene el ítem más lo que haya libre en stock. El precio no cambia: se conserva
+ * Contenido del modal "Cambiar cantidad" de un ítem. Limita la cantidad a lo que ya tiene el
+ * ítem más lo que haya libre en stock: en ítems por bulto, en bultos; en ítems por unidad, en
+ * unidades (bultos libres × unidades por bulto de la venta). El precio no cambia: se conserva
  * el de la venta. El cambio se aplica al instante, por eso guardar no es asincrónico.
  */
 export function EditarCantidad({ item, disponible, onGuardar }: Props) {
@@ -23,8 +24,17 @@ export function EditarCantidad({ item, disponible, onGuardar }: Props) {
 
   const cantidad = aNumero(texto);
   const valida = Number.isFinite(cantidad) && cantidad > 0;
-  const maximo = item.unidad_venta === 'bulto' && disponible !== undefined ? item.cantidad + disponible : undefined;
+  // Líneas por unidad viejas (sin contenido guardado) no descuentan stock: no tienen tope
+  const maximo =
+    disponible === undefined
+      ? undefined
+      : item.unidad_venta === 'bulto'
+        ? item.cantidad + disponible
+        : item.contenido_por_bulto
+          ? item.cantidad + Math.floor(disponible * item.contenido_por_bulto + 1e-9)
+          : undefined;
   const excede = valida && maximo !== undefined && cantidad > maximo;
+  const etiqueta = item.unidad_venta === 'bulto' ? 'bultos' : 'unidades';
 
   return (
     <div className="space-y-5">
@@ -39,7 +49,7 @@ export function EditarCantidad({ item, disponible, onGuardar }: Props) {
       <CantidadStepper value={texto} onChange={setTexto} />
 
       {excede && (
-        <p className="text-sm text-danger-700">Como máximo podés tener {formatCantidad(maximo!)} bultos.</p>
+        <p className="text-sm text-danger-700">Como máximo podés tener {formatCantidad(maximo!)} {etiqueta}.</p>
       )}
 
       <div className="flex items-baseline justify-between rounded-2xl bg-canvas p-4">

@@ -19,14 +19,9 @@ interface Props {
 }
 
 /**
- * Convierte los valores del formulario al formato que espera la API.
- * `cantidad_por_bulto` solo se envía si el producto es fraccionable: el backend rechaza
- * `null` (400) y, por PUT, no permite borrar un valor ya guardado.
- */
-/**
  * Convierte los valores del formulario al formato de la API.
- * `cantidad_por_bulto` es solo informativa: si el producto no es fraccionable o el
- * campo está vacío se envía null, y el backend borra el dato guardado.
+ * `cantidad_por_bulto` es obligatorio si el producto es fraccionable (lo valida el esquema y el
+ * backend). Si no es fraccionable se envía null y el backend borra el dato guardado.
  */
 function toPayload(v: ProductoFormValues): ProductoInput {
   const contenido = v.cantidad_por_bulto.replace(',', '.');
@@ -96,21 +91,16 @@ export function ProductoForm({ producto, onSaved }: Props) {
 
 <Toggle
   label="Permite venta fraccionada"
-  hint="Se puede vender por unidad, además de por bulto. El stock solo se descuenta al vender bultos."
+  hint="Se puede vender por unidad, además de por bulto. Cada unidad vendida descuenta del stock la fracción de bulto que le corresponde."
   {...register('permite_venta_fraccionada')}
 />
 
-
-<p className="-mt-2 text-xs text-muted">
-  El stock solo se descuenta al vender bultos cerrados.
-</p>
-
       {fraccionable && (
         <Input
-          label="Contenido aproximado por bulto (opcional)"
+          label="Unidades por bulto"
           inputMode="decimal"
-          placeholder="Ej: 20"
-          hint="Solo de referencia: no se usa para calcular el stock."
+          placeholder="Ej: 10"
+          hint="Se usa para descontar el stock: con 10 por bulto, vender 11 unidades descuenta 1,1 bultos."
           error={errors.cantidad_por_bulto?.message}
           {...register('cantidad_por_bulto')}
         />

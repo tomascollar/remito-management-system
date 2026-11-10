@@ -214,8 +214,8 @@ export function PrecioForm({ producto, stock, onDone }: FormProps) {
 }
 
 /**
- * AJUSTAR: corrección manual del stock (por ejemplo, para descontar las ventas por unidad,
- * que no tocan el stock en bultos). Se elige sumar o restar y se carga la cantidad en positivo:
+ * AJUSTAR: corrección manual del stock (por ejemplo, por mercadería que se rompió o por un
+ * conteo que no coincide). Se elige sumar o restar y se carga la cantidad en positivo:
  * así no hace falta el signo menos, que el teclado numérico del celular no trae.
  */
 export function AjusteForm({ producto, stock, onDone }: FormProps & { stock: StockVigente }) {
@@ -286,7 +286,7 @@ export function AjusteForm({ producto, stock, onDone }: FormProps & { stock: Sto
 
       <Input
         label="Motivo (opcional)"
-        placeholder="Ej: ventas por unidad del día"
+        placeholder="Ej: mercadería en mal estado"
         error={errors.observaciones?.message}
         {...register('observaciones')}
       />

@@ -79,12 +79,12 @@ describe('Venta por unidad con precio P.UxB', () => {
     expect(remito.items[0].precio_x_bulto).toBe(false);
   });
 
-  test('por ahora (fase 1) la venta por unidad con P.UxB no toca el stock en bultos', async () => {
+  test('la venta por unidad con P.UxB también descuenta stock: 11 u. con 10 por bulto = 1,1 bultos', async () => {
     crearRemito();
     const { stock } = crearProductoYStock();
     await agregar({ cantidad: 11, unidad_venta: 'unidad', precio_x_bulto: true }).expect(201);
-    expect(stock.cantidad_bultos_actual).toBe(20);
-    expect(stock.save).not.toHaveBeenCalled();
+    expect(stock.cantidad_bultos_actual).toBe(18.9);
+    expect(stock.save).toHaveBeenCalled();
   });
 
   test('si el producto no tiene P.UxB cargado se rechaza con 400 y no modifica el remito', async () => {

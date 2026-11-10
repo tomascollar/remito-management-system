@@ -10,7 +10,8 @@ export interface RemitoItem {
   nombre_producto: string;
   cantidad: number;
   unidad_venta: UnidadVenta;
-  bultos_consumidos: number; // 0 en ventas por unidad (no descuentan stock)
+  bultos_consumidos: number; // bultos descontados del stock (decimal en ventas por unidad: 11 u. de 10 por bulto = 1,1)
+  contenido_por_bulto?: number; // solo ventas por unidad: unidades por bulto con las que se calculó el descuento
   precio_unitario: number;
   precio_x_bulto?: boolean; // true si se vendió a P.UxB (precio de unidad por bulto)
   subtotal: number;

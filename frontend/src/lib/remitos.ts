@@ -40,6 +40,17 @@ export const entregasVigentes = (r: Pick<Remito, 'entregas'>) => r.entregas.filt
 export const sinItem = (r: Remito, itemId: string): Remito =>
   conItems(r, r.items.filter((it) => it._id !== itemId));
 
+/**
+ * Bultos que descuenta una línea con esa cantidad, igual que el servidor: por bulto 1 a 1; por
+ * unidad, cantidad ÷ unidades por bulto guardadas en la línea (0 si es una línea vieja sin ese dato).
+ */
+export const bultosDeLinea = (it: Pick<Remito['items'][number], 'unidad_venta' | 'contenido_por_bulto'>, cantidad: number) =>
+  it.unidad_venta === 'bulto'
+    ? cantidad
+    : it.contenido_por_bulto
+      ? Math.round((cantidad / it.contenido_por_bulto + Number.EPSILON) * 1e6) / 1e6
+      : 0;
+
 /** El remito con otra cantidad en un ítem: recalcula subtotal, bultos consumidos y total. */
 export const conCantidad = (r: Remito, itemId: string, cantidad: number): Remito => {
   const items = r.items.map((it) =>
@@ -49,7 +60,7 @@ export const conCantidad = (r: Remito, itemId: string, cantidad: number): Remito
           ...it,
           cantidad,
           subtotal: cantidad * it.precio_unitario,
-          bultos_consumidos: it.unidad_venta === 'bulto' ? cantidad : 0,
+          bultos_consumidos: bultosDeLinea(it, cantidad),
         },
   );
   return conItems(r, items);

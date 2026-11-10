@@ -133,7 +133,7 @@ export default function Productos() {
                 </p>
                 {p.permite_venta_fraccionada && (
   <span className="mt-1.5 inline-block rounded-full bg-primary-50 px-2.5 py-0.5 text-xs font-medium text-primary-700">
-    Fraccionable{p.cantidad_por_bulto ? ` · aprox. ${p.cantidad_por_bulto} por bulto` : ''}
+    Fraccionable{p.cantidad_por_bulto ? ` · ${p.cantidad_por_bulto} por bulto` : ' · falta cargar las unidades por bulto'}
   </span>
 )}
               </div>

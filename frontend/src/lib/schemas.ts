@@ -17,11 +17,16 @@ export const productoSchema = z.object({
     .string()
     .refine((v) => v === '' || enCatalogo(CATEGORIAS, v), 'Elegí una categoría de la lista'),
   permite_venta_fraccionada: z.boolean(),
-  // Informativo y opcional: vacío es válido; si se completa, debe ser un número > 0
+  // Unidades por bulto: si se completa debe ser un número >= 1 (el modelo no admite menos)
   cantidad_por_bulto: z
     .string()
     .trim()
-    .refine((v) => v === '' || (Number.isFinite(aNumero(v)) && aNumero(v) > 0), 'Ingresá un número mayor a 0'),
+    .refine((v) => v === '' || (Number.isFinite(aNumero(v)) && aNumero(v) >= 1), 'Ingresá un número igual o mayor a 1'),
+}).superRefine((v, ctx) => {
+  // Obligatorio si se vende por unidad: con ese dato se calcula cuánto stock descontar
+  if (v.permite_venta_fraccionada && v.cantidad_por_bulto === '') {
+    ctx.addIssue({ code: 'custom', path: ['cantidad_por_bulto'], message: 'Indicá cuántas unidades trae cada bulto' });
+  }
 });
 
 export type ProductoFormValues = z.infer<typeof productoSchema>;
